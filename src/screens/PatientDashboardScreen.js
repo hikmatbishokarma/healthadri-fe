@@ -10,8 +10,26 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getLatestTriage } from '../services/api';
+import {
+  getLatestTriage,
+  getAppointments,
+  getPatientReminders,
+  getMessages,
+} from '../services/api';
 import { useAuth } from '../context/AuthContext';
+
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+function dueLabel(value) {
+  const d = new Date(value);
+  const now = new Date();
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (sameDay(d, now)) return 'today';
+  if (sameDay(d, tomorrow)) return 'tomorrow';
+  return d.toLocaleDateString();
+}
 
 const C = {
   teal: '#1A6B5A',
@@ -35,31 +53,84 @@ const C = {
 export default function PatientDashboardScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [triage, setTriage] = useState(null);
+  const [nextItem, setNextItem] = useState(null);
+  const [urgentReminder, setUrgentReminder] = useState(null);
+  const [recentNavMessage, setRecentNavMessage] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTriage = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const res = await getLatestTriage(user._id);
-      setTriage(res.data);
+      const navId = user.assignedNavigatorId;
+      const [triageRes, apptRes, remRes, msgRes] = await Promise.all([
+        getLatestTriage(user._id),
+        getAppointments(user._id),
+        getPatientReminders(user._id),
+        navId ? getMessages(user._id, navId) : Promise.resolve({ data: [] }),
+      ]);
+      setTriage(triageRes.data);
+
+      const now = Date.now();
+      const items = [];
+      (apptRes.data || []).forEach((a) => {
+        const when = new Date(a.scheduledAt).getTime();
+        const finalized = ['completed', 'cancelled', 'missed'].includes(a.status);
+        if (!finalized && when >= now) {
+          items.push({ kind: 'appointment', when, data: a });
+        }
+      });
+      (remRes.data || []).forEach((r) => {
+        const when = new Date(r.date).getTime();
+        if (when >= now) items.push({ kind: 'reminder', when, data: r });
+      });
+      items.sort((a, b) => a.when - b.when);
+      setNextItem(items[0] || null);
+
+      const URGENT_MS = 48 * 60 * 60 * 1000;
+      const urgent = (remRes.data || [])
+        .map((r) => ({ ...r, _when: new Date(r.date).getTime() }))
+        .filter((r) => r._when >= now && r._when - now <= URGENT_MS)
+        .sort((a, b) => a._when - b._when)[0];
+      setUrgentReminder(urgent || null);
+
+      const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+      const fromNav = (msgRes.data || [])
+        .filter(
+          (m) =>
+            String(m.senderId) === String(navId) &&
+            now - new Date(m.createdAt).getTime() <= RECENT_MS,
+        )
+        .sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0];
+      setRecentNavMessage(fromNav || null);
     } catch {
       setTriage(null);
+      setNextItem(null);
+      setUrgentReminder(null);
+      setRecentNavMessage(null);
     } finally {
       setRefreshing(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchTriage();
-  }, [fetchTriage]);
+    fetchAll();
+  }, [fetchAll]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTriage();
+    fetchAll();
   };
 
   const alert = triage?.alert;
-  const severity = alert?.severity || alert?.level;
+  const isFromToday = (() => {
+    if (!alert?.createdAt) return false;
+    const created = new Date(alert.createdAt);
+    const now = new Date();
+    return created.toDateString() === now.toDateString();
+  })();
+  const severity = isFromToday ? alert?.severity || alert?.level : null;
 
   const status =
     severity === 'HIGH'
@@ -135,7 +206,7 @@ export default function PatientDashboardScreen({ navigation }) {
               })
             }
           />
-          <QuickItem icon="📅" label="Appointments" onPress={() => navigation.navigate('Appointments')} />
+          <QuickItem icon="📅" label="Reminders" onPress={() => navigation.navigate('Reminders')} />
           <QuickItem icon="🏥" label="Find Hospital" onPress={() => navigation.navigate('Hospitals')} />
           <QuickItem icon="💰" label="Insurance Help" onPress={() => comingSoon('Insurance Help')} />
           <QuickItem icon="💚" label="My Wellbeing" onPress={() => comingSoon('My Wellbeing')} />
@@ -143,56 +214,57 @@ export default function PatientDashboardScreen({ navigation }) {
           <QuickItem icon="🤲" label="Caregiver" onPress={() => comingSoon('Caregiver')} />
         </View>
 
-        <Text style={styles.sectionLabel}>Today's Alerts</Text>
-        <View
-          style={[
-            styles.alertCard,
-            { backgroundColor: C.redPale, borderColor: C.redBorder },
-          ]}
-        >
-          <Text style={styles.alertIcon}>⚠️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Blood Test Due Tomorrow</Text>
-            <Text style={styles.alertDesc}>
-              CBC and LFT required before Chemo Session 3. Book at nearest NABL centre.
-            </Text>
-          </View>
-        </View>
-        <View
-          style={[
-            styles.alertCard,
-            { backgroundColor: C.tealPale, borderColor: C.tealMid },
-          ]}
-        >
-          <Text style={styles.alertIcon}>💬</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Message from Navigator Priya</Text>
-            <Text style={styles.alertDesc}>
-              "Your Aarogyasri pre-authorisation has been approved. Please carry your Aadhar card."
-            </Text>
-          </View>
-        </View>
+        {(urgentReminder || recentNavMessage) && (
+          <Text style={styles.sectionLabel}>Today's Alerts</Text>
+        )}
+        {urgentReminder && (
+          <TouchableOpacity
+            style={[
+              styles.alertCard,
+              { backgroundColor: C.redPale, borderColor: C.redBorder },
+            ]}
+            onPress={() => navigation.navigate('Reminders')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.alertIcon}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>
+                {(urgentReminder.type || 'reminder').toUpperCase()} due{' '}
+                {dueLabel(urgentReminder.date)}
+              </Text>
+              <Text style={styles.alertDesc}>{urgentReminder.title}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        {recentNavMessage && (
+          <TouchableOpacity
+            style={[
+              styles.alertCard,
+              { backgroundColor: C.tealPale, borderColor: C.tealMid },
+            ]}
+            onPress={() =>
+              navigation.navigate('Chat', {
+                withUserId: user?.assignedNavigatorId,
+                name: 'Navigator',
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={styles.alertIcon}>💬</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>Message from your navigator</Text>
+              <Text style={styles.alertDesc} numberOfLines={2}>
+                "{recentNavMessage.text}"
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
-        <Text style={styles.sectionLabel}>Next Appointment</Text>
-        <View style={styles.apptCard}>
-          <View style={styles.apptDate}>
-            <Text style={styles.apptDay}>15</Text>
-            <Text style={styles.apptMon}>JAN</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.apptTitle}>Chemotherapy — Session 3</Text>
-            <Text style={styles.apptDoc}>Dr. Anand Rao · Medical Oncologist</Text>
-            <Text style={styles.apptTime}>🏥 Basavatarakam · 10:00 AM</Text>
-          </View>
-          <View style={{ gap: 4 }}>
-            <TouchableOpacity style={[styles.apptBtn, { backgroundColor: C.teal }]}>
-              <Text style={styles.apptBtnPrimaryText}>Navigate</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.apptBtn, { backgroundColor: C.border }]}>
-              <Text style={styles.apptBtnSecondaryText}>Remind</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Text style={styles.sectionLabel}>Next Up</Text>
+        <NextUpCard
+          nextItem={nextItem}
+          onPress={() => navigation.navigate('Reminders')}
+        />
 
         <TouchableOpacity style={styles.signOut} onPress={signOut}>
           <Text style={styles.signOutText}>Sign out</Text>
@@ -207,6 +279,61 @@ function QuickItem({ icon, label, onPress }) {
     <TouchableOpacity style={styles.quickItem} onPress={onPress}>
       <Text style={styles.quickIcon}>{icon}</Text>
       <Text style={styles.quickLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function NextUpCard({ nextItem, onPress }) {
+  if (!nextItem) {
+    return (
+      <TouchableOpacity style={styles.nextEmpty} onPress={onPress} activeOpacity={0.7}>
+        <Text style={styles.nextEmptyText}>
+          Nothing scheduled. Tap to add an appointment or upload a prescription.
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  const isAppt = nextItem.kind === 'appointment';
+  const data = nextItem.data;
+  const date = new Date(nextItem.when);
+  const day = String(date.getDate()).padStart(2, '0');
+  const mon = MONTHS[date.getMonth()];
+
+  const subtitleParts = [];
+  if (isAppt) {
+    if (data.doctor) subtitleParts.push(data.doctor);
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (data.location) subtitleParts.push(`🏥 ${data.location} · ${time}`);
+    else subtitleParts.push(time);
+  } else {
+    subtitleParts.push(
+      `🔔 ${(data.type || 'reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`,
+    );
+  }
+
+  return (
+    <TouchableOpacity style={styles.apptCard} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.apptDate}>
+        <Text style={styles.apptDay}>{day}</Text>
+        <Text style={styles.apptMon}>{mon}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.apptTitle} numberOfLines={2}>
+          {data.title}
+        </Text>
+        {subtitleParts[0] ? (
+          <Text style={styles.apptDoc} numberOfLines={1}>
+            {subtitleParts[0]}
+          </Text>
+        ) : null}
+        {subtitleParts[1] ? (
+          <Text style={styles.apptTime} numberOfLines={1}>
+            {subtitleParts[1]}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={styles.nextChevron}>›</Text>
     </TouchableOpacity>
   );
 }
@@ -384,6 +511,16 @@ const styles = StyleSheet.create({
   },
   apptBtnPrimaryText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   apptBtnSecondaryText: { color: C.text, fontSize: 9, fontWeight: '700' },
+  nextChevron: { color: C.muted, fontSize: 24, fontWeight: '300', marginLeft: 4 },
+  nextEmpty: {
+    backgroundColor: C.card,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: C.border,
+  },
+  nextEmptyText: { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 16 },
 
   signOut: { marginTop: 24, alignItems: 'center', paddingVertical: 8 },
   signOutText: { color: C.muted, fontSize: 12 },

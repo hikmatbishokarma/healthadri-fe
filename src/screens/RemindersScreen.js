@@ -17,6 +17,7 @@ import {
   getAppointments,
   createAppointment,
   updateAppointment,
+  getPatientReminders,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -60,20 +61,26 @@ const TYPE_LABELS = {
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-export default function AppointmentsScreen({ navigation }) {
+export default function RemindersScreen({ navigation }) {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
+  const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const fetchAppts = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const res = await getAppointments(user._id);
-      setAppointments(res.data || []);
+      const [aRes, rRes] = await Promise.all([
+        getAppointments(user._id),
+        getPatientReminders(user._id),
+      ]);
+      setAppointments(aRes.data || []);
+      setReminders(rRes.data || []);
     } catch {
       setAppointments([]);
+      setReminders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,36 +88,48 @@ export default function AppointmentsScreen({ navigation }) {
   }, [user]);
 
   useEffect(() => {
-    fetchAppts();
-  }, [fetchAppts]);
+    fetchAll();
+  }, [fetchAll]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchAppts();
+    fetchAll();
   };
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now();
-    const up = [];
-    const pa = [];
+    const items = [];
+
     appointments.forEach((a) => {
-      if (a.status === 'completed' || a.status === 'cancelled' || a.status === 'missed') {
-        pa.push(a);
-      } else if (new Date(a.scheduledAt).getTime() < now) {
-        pa.push(a);
-      } else {
-        up.push(a);
-      }
+      const when = new Date(a.scheduledAt).getTime();
+      const isFinalized = ['completed', 'cancelled', 'missed'].includes(a.status);
+      items.push({
+        kind: 'appointment',
+        when,
+        isPast: isFinalized || when < now,
+        data: a,
+      });
     });
-    up.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-    pa.sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+
+    reminders.forEach((r) => {
+      const when = new Date(r.date).getTime();
+      items.push({
+        kind: 'reminder',
+        when,
+        isPast: when < now,
+        data: r,
+      });
+    });
+
+    const up = items.filter((i) => !i.isPast).sort((a, b) => a.when - b.when);
+    const pa = items.filter((i) => i.isPast).sort((a, b) => b.when - a.when);
     return { upcoming: up, past: pa };
-  }, [appointments]);
+  }, [appointments, reminders]);
 
   const handleMarkCompleted = async (id) => {
     try {
       await updateAppointment(id, { status: 'completed' });
-      fetchAppts();
+      fetchAll();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not update');
     }
@@ -125,13 +144,8 @@ export default function AppointmentsScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Appointments</Text>
-          <TouchableOpacity
-            onPress={() => setModalVisible(true)}
-            style={styles.addBtn}
-          >
-            <Text style={styles.addBtnText}>＋</Text>
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Reminders</Text>
+          <View style={{ width: 32 }} />
         </View>
       </SafeAreaView>
 
@@ -146,24 +160,34 @@ export default function AppointmentsScreen({ navigation }) {
           <Text style={styles.sectionLabel}>Upcoming</Text>
           {upcoming.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>No upcoming appointments. Tap + to add one.</Text>
+              <Text style={styles.emptyText}>
+                Nothing upcoming. Tap + to add an appointment, or upload a prescription to get auto-extracted reminders.
+              </Text>
             </View>
           ) : (
-            upcoming.map((a) => (
-              <ApptCard
-                key={a._id}
-                appt={a}
-                onComplete={() => handleMarkCompleted(a._id)}
-              />
-            ))
+            upcoming.map((item) =>
+              item.kind === 'appointment' ? (
+                <ApptCard
+                  key={`a:${item.data._id}`}
+                  appt={item.data}
+                  onComplete={() => handleMarkCompleted(item.data._id)}
+                />
+              ) : (
+                <ReminderCard key={`r:${item.data._id}`} reminder={item.data} />
+              ),
+            )
           )}
 
           {past.length > 0 && (
             <>
-              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Past Appointments</Text>
-              {past.map((a) => (
-                <ApptCard key={a._id} appt={a} past />
-              ))}
+              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Past</Text>
+              {past.map((item) =>
+                item.kind === 'appointment' ? (
+                  <ApptCard key={`a:${item.data._id}`} appt={item.data} past />
+                ) : (
+                  <ReminderCard key={`r:${item.data._id}`} reminder={item.data} past />
+                ),
+              )}
             </>
           )}
         </ScrollView>
@@ -233,6 +257,42 @@ function ApptCard({ appt, past, onComplete }) {
             </TouchableOpacity>
           </>
         )}
+      </View>
+    </View>
+  );
+}
+
+function ReminderCard({ reminder, past }) {
+  const date = new Date(reminder.date);
+  const day = String(date.getDate()).padStart(2, '0');
+  const mon = MONTHS[date.getMonth()];
+  const isVisit = reminder.type === 'visit';
+  const accentColor = past ? C.muted : isVisit ? C.blue : C.amber;
+  const accentPale = past ? '#F1F5F9' : isVisit ? C.bluePale : '#FEF3C7';
+
+  return (
+    <View
+      style={[
+        styles.apptCard,
+        { borderLeftColor: accentColor, opacity: past ? 0.65 : 1 },
+      ]}
+    >
+      <View style={[styles.apptDate, { backgroundColor: accentPale }]}>
+        <Text style={[styles.apptDay, { color: accentColor }]}>{day}</Text>
+        <Text style={[styles.apptMon, { color: accentColor }]}>{mon}</Text>
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <View style={styles.reminderRow}>
+          <Text style={styles.reminderBadge}>🔔 REMINDER</Text>
+          <Text style={[styles.reminderTypePill, { color: accentColor, backgroundColor: accentPale }]}>
+            {isVisit ? 'VISIT' : 'TEST'}
+          </Text>
+        </View>
+        <Text style={styles.apptTitle}>{reminder.title}</Text>
+        <Text style={styles.apptMeta}>
+          {past ? 'Was due' : 'Due'} {date.toLocaleDateString()}
+        </Text>
       </View>
     </View>
   );
@@ -459,6 +519,28 @@ const styles = StyleSheet.create({
   apptTitle: { fontSize: 12, fontWeight: '700', color: C.text },
   apptDoc: { fontSize: 10, color: C.muted, marginTop: 2 },
   apptMeta: { fontSize: 10, color: C.muted, marginTop: 1 },
+
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  reminderBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: C.muted,
+    letterSpacing: 0.5,
+  },
+  reminderTypePill: {
+    fontSize: 9,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
+    letterSpacing: 0.5,
+  },
 
   btn: {
     paddingHorizontal: 10,

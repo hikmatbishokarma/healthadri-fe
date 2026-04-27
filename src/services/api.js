@@ -89,4 +89,19 @@ export const deleteDocument = (id) => api.delete(`/documents/${id}`);
 
 export const getDocumentFileUrl = (id) => `${BASE_URL}/documents/${id}/file`;
 
+export const getNavigatorDrafts = (navigatorId) =>
+  api.get('/tasks', { params: { navigatorId, status: 'draft' } });
+
+export const getDraftsForDocument = (sourceDocumentId) =>
+  api.get('/tasks', { params: { sourceDocumentId, status: 'draft' } });
+
+export const getPatientReminders = (patientId) =>
+  api.get('/tasks', { params: { patientId, status: 'active' } });
+
+export const updateTask = (id, payload) => api.patch(`/tasks/${id}`, payload);
+
+export const publishTask = (id) => api.post(`/tasks/${id}/publish`);
+
+export const deleteTask = (id) => api.delete(`/tasks/${id}`);
+
 export default api;

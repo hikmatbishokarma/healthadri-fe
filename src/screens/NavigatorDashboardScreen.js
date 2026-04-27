@@ -8,24 +8,31 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { getNavigatorDashboard } from '../services/api';
+import { getNavigatorDashboard, getNavigatorDrafts } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function NavigatorDashboardScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [items, setItems] = useState([]);
+  const [draftCount, setDraftCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const res = await getNavigatorDashboard(user._id);
-      // Expect an array or { patients: [...] }
-      const list = Array.isArray(res.data) ? res.data : res.data?.patients || [];
+      const [dashRes, draftsRes] = await Promise.all([
+        getNavigatorDashboard(user._id),
+        getNavigatorDrafts(user._id),
+      ]);
+      const list = Array.isArray(dashRes.data)
+        ? dashRes.data
+        : dashRes.data?.patients || [];
       setItems(list);
+      setDraftCount(Array.isArray(draftsRes.data) ? draftsRes.data.length : 0);
     } catch (err) {
       setItems([]);
+      setDraftCount(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,6 +68,26 @@ export default function NavigatorDashboardScreen({ navigation }) {
         keyExtractor={(item, idx) => item._id || item.patientId || String(idx)}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListHeaderComponent={
+          draftCount > 0 ? (
+            <TouchableOpacity
+              style={styles.draftsBanner}
+              onPress={() => navigation.navigate('DraftsList')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.draftsBannerIcon}>📝</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.draftsBannerTitle}>
+                  {draftCount} draft{draftCount === 1 ? '' : 's'} to review
+                </Text>
+                <Text style={styles.draftsBannerSubtitle}>
+                  Verify AI-extracted reminders before publishing to patients
+                </Text>
+              </View>
+              <Text style={styles.draftsBannerChevron}>›</Text>
+            </TouchableOpacity>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>No patient alerts right now.</Text>
@@ -177,6 +204,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtnText: { fontSize: 11, fontWeight: '700', color: '#1A1A2E' },
+  draftsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  draftsBannerIcon: { fontSize: 22 },
+  draftsBannerTitle: { fontSize: 14, fontWeight: '700', color: '#92400E' },
+  draftsBannerSubtitle: { fontSize: 11, color: '#78350F', marginTop: 2, lineHeight: 15 },
+  draftsBannerChevron: { fontSize: 22, color: '#92400E', fontWeight: '300' },
   emptyCard: {
     backgroundColor: '#fff',
     borderRadius: 10,

@@ -11,9 +11,11 @@ import SymptomScreen from '../screens/SymptomScreen';
 import NavigatorDashboardScreen from '../screens/NavigatorDashboardScreen';
 import ChatScreen from '../screens/ChatScreen';
 import HospitalDirectoryScreen from '../screens/HospitalDirectoryScreen';
-import AppointmentsScreen from '../screens/AppointmentsScreen';
+import RemindersScreen from '../screens/RemindersScreen';
 import WeeklyReportScreen from '../screens/WeeklyReportScreen';
 import MedicalRecordsScreen from '../screens/MedicalRecordsScreen';
+import DraftsListScreen from '../screens/DraftsListScreen';
+import DraftReviewScreen from '../screens/DraftReviewScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -66,6 +68,16 @@ export default function AppNavigator() {
               component={MedicalRecordsScreen}
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="DraftsList"
+              component={DraftsListScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="DraftReview"
+              component={DraftReviewScreen}
+              options={{ headerShown: false }}
+            />
           </>
         ) : (
           <>
@@ -85,8 +97,8 @@ export default function AppNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="Appointments"
-              component={AppointmentsScreen}
+              name="Reminders"
+              component={RemindersScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

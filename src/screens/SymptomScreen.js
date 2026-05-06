@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSymptoms, submitSymptomEntry } from '../services/api';
@@ -44,6 +45,11 @@ export default function SymptomScreen({ navigation }) {
   const [savedGuidance, setSavedGuidance] = useState([]);
   const [saveError, setSaveError] = useState(null);
 
+  // Always-current values for reading inside timer callbacks
+  const valuesRef = useRef({});
+  const autoTimer = useRef(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     (async () => {
       try {
@@ -52,10 +58,10 @@ export default function SymptomScreen({ navigation }) {
           res.data && res.data.length
             ? res.data
             : [
-                { _id: 'pain', name: 'Pain', min: 0, max: 10 },
+                { _id: 'pain',    name: 'Pain',    min: 0, max: 10 },
                 { _id: 'fatigue', name: 'Fatigue', min: 0, max: 10 },
-                { _id: 'nausea', name: 'Nausea', min: 0, max: 10 },
-                { _id: 'fever', name: 'Fever', min: 0, max: 10 },
+                { _id: 'nausea',  name: 'Nausea',  min: 0, max: 10 },
+                { _id: 'fever',   name: 'Fever',   min: 0, max: 10 },
               ];
         setSymptoms(list);
       } catch {
@@ -64,9 +70,26 @@ export default function SymptomScreen({ navigation }) {
         setLoading(false);
       }
     })();
+    return () => {
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+    };
   }, []);
 
-  const setValue = (id, v) => setValues((prev) => ({ ...prev, [id]: v }));
+  // Animate the progress bar whenever step or symptom count changes
+  useEffect(() => {
+    if (symptoms.length === 0) return;
+    Animated.timing(progressAnim, {
+      toValue: (step + 1) / symptoms.length,
+      duration: 280,
+      useNativeDriver: false,
+    }).start();
+  }, [step, symptoms.length]);
+
+  const setValue = (id, v) => {
+    const next = { ...valuesRef.current, [id]: v };
+    valuesRef.current = next;
+    setValues(next);
+  };
 
   const handleSave = async () => {
     if (!user?._id || submitting || savedAlerts !== null) return;
@@ -75,7 +98,7 @@ export default function SymptomScreen({ navigation }) {
     try {
       const responses = symptoms.map((s) => ({
         symptomId: s._id,
-        value: values[s._id] ?? 0,
+        value: valuesRef.current[s._id] ?? 0,
       }));
       const res = await submitSymptomEntry(user._id, responses);
       setSavedAlerts(res.data?.alerts || []);
@@ -86,6 +109,39 @@ export default function SymptomScreen({ navigation }) {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Auto-advance 450ms after selecting a face; cancel if user taps again or goes back
+  const handleFaceSelect = (id, v) => {
+    setValue(id, v);
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    autoTimer.current = setTimeout(() => {
+      if (step < symptoms.length - 1) {
+        setStep((s) => s + 1);
+      } else {
+        handleSave();
+      }
+    }, 450);
+  };
+
+  const goBack = () => {
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    if (step === 0) {
+      navigation.goBack();
+    } else {
+      setStep((s) => s - 1);
+    }
+  };
+
+  const goNext = () => {
+    const current = symptoms[step];
+    if (valuesRef.current[current?._id] === undefined) return;
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    if (step === symptoms.length - 1) {
+      handleSave();
+    } else {
+      setStep((s) => s + 1);
     }
   };
 
@@ -105,6 +161,7 @@ export default function SymptomScreen({ navigation }) {
     );
   }
 
+  // ── Result screen ──────────────────────────────────────────────────────────
   if (savedAlerts !== null) {
     const triggered = savedAlerts;
     return (
@@ -144,10 +201,10 @@ export default function SymptomScreen({ navigation }) {
             {savedGuidance.length > 0 && (
               <View style={styles.guidanceBlock}>
                 <Text style={styles.guidanceTitle}>What to expect next</Text>
-                {savedGuidance.map((step, i) => (
+                {savedGuidance.map((g, i) => (
                   <View key={i} style={styles.guidanceRow}>
                     <Text style={styles.guidanceCheck}>✓</Text>
-                    <Text style={styles.guidanceText}>{step}</Text>
+                    <Text style={styles.guidanceText}>{g}</Text>
                   </View>
                 ))}
               </View>
@@ -175,28 +232,12 @@ export default function SymptomScreen({ navigation }) {
     );
   }
 
+  // ── Check-in screen ────────────────────────────────────────────────────────
   const total = symptoms.length;
   const current = symptoms[step];
   const currentValue = values[current._id];
   const hasAnswered = currentValue !== undefined;
   const isLast = step === total - 1;
-
-  const goBack = () => {
-    if (step === 0) {
-      navigation.goBack();
-    } else {
-      setStep((s) => s - 1);
-    }
-  };
-
-  const goNext = () => {
-    if (!hasAnswered) return;
-    if (isLast) {
-      handleSave();
-    } else {
-      setStep((s) => s + 1);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -212,26 +253,27 @@ export default function SymptomScreen({ navigation }) {
             <Text style={styles.langText}>EN</Text>
           </View>
         </View>
+
+        {/* Animated progress bar — works for any number of symptoms */}
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[
+              styles.progressFill,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
       </SafeAreaView>
 
       <View style={styles.body}>
-        <View style={styles.progressBlock}>
-          <View style={styles.dotsRow}>
-            {symptoms.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  i === step && styles.dotActive,
-                  i < step && styles.dotDone,
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.stepLabel}>
-            Step {step + 1} of {total}
-          </Text>
-        </View>
+        <Text style={styles.stepLabel}>
+          {step + 1} / {total}
+        </Text>
 
         <View style={styles.questionCard}>
           <Text style={styles.symptomName}>{current.name}</Text>
@@ -239,21 +281,18 @@ export default function SymptomScreen({ navigation }) {
             {PROMPTS[current.name] || 'Tap the face that matches how you feel.'}
           </Text>
 
-          <View style={styles.scaleWrap}>
-            <FaceScale
-              size="big"
-              value={currentValue}
-              onChange={(v) => setValue(current._id, v)}
-            />
-          </View>
+          <FaceScale
+            value={currentValue}
+            onChange={(v) => handleFaceSelect(current._id, v)}
+          />
 
-          {!hasAnswered && (
-            <Text style={styles.tapHint}>Tap a face to continue</Text>
-          )}
+          <Text style={[styles.hint, hasAnswered && styles.hintAnswered]}>
+            {hasAnswered ? 'Moving on in a moment…' : 'Tap a face to continue'}
+          </Text>
         </View>
       </View>
 
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.card }}>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }}>
         {saveError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>Could not save: {saveError}</Text>
@@ -318,54 +357,71 @@ const styles = StyleSheet.create({
   },
   langText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
 
-  body: { flex: 1, padding: 14 },
-
-  progressBlock: { alignItems: 'center', marginTop: 4, marginBottom: 18 },
-  dotsRow: { flexDirection: 'row', gap: 8 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: C.border,
+  progressTrack: {
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
-  dotActive: { width: 24, backgroundColor: C.teal },
-  dotDone: { backgroundColor: C.teal, opacity: 0.5 },
-  stepLabel: { fontSize: 11, color: C.muted, marginTop: 8, fontWeight: '600' },
+  progressFill: {
+    height: 3,
+    backgroundColor: '#fff',
+    borderRadius: 2,
+  },
+
+  body: { flex: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
+
+  stepLabel: {
+    fontSize: 12,
+    color: C.muted,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
 
   questionCard: {
     backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
   },
   symptomName: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: C.text,
     textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   prompt: {
     fontSize: 14,
     color: C.muted,
     textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 22,
     lineHeight: 20,
+    marginBottom: 28,
   },
-  scaleWrap: { marginTop: 4 },
-  tapHint: {
+  hint: {
     fontSize: 11,
     color: C.muted,
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 20,
     fontStyle: 'italic',
+  },
+  hintAnswered: {
+    color: C.teal,
+    opacity: 0.8,
   },
 
   navBar: {
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: 1,
@@ -373,7 +429,7 @@ const styles = StyleSheet.create({
   },
   navBtn: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -388,14 +444,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     borderTopWidth: 1,
     borderTopColor: '#FECACA',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
   },
   errorText: { color: '#B91C1C', fontSize: 12, fontWeight: '600' },
 
   savedCard: {
     backgroundColor: C.card,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
     borderColor: C.border,

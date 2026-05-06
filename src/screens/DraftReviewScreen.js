@@ -22,17 +22,18 @@ import {
 } from '../services/api';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  navy: '#1E3A5F',
+  navyDark: '#0F2238',
   bg: '#F4F6F8',
   card: '#FFFFFF',
   text: '#1A1A2E',
   muted: '#64748B',
   border: '#E2E8F0',
+  accent: '#6D5BD0',
+  accentPale: '#EEEAFD',
   green: '#15803D',
   greenPale: '#DCFCE7',
-  red: '#B91C1C',
+  red: '#DC2626',
   redPale: '#FEE2E2',
   blue: '#1D4ED8',
   bluePale: '#DBEAFE',
@@ -183,25 +184,25 @@ export default function DraftReviewScreen({ navigation, route }) {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator color={C.teal} />
+        <ActivityIndicator color={C.accent} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
+      <StatusBar barStyle="light-content" backgroundColor={C.navyDark} />
 
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: C.navy }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backIcon}>‹</Text>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.patientLabel} numberOfLines={1}>
+            <Text style={styles.greeting} numberOfLines={1}>
               {patientName || 'Patient'}
             </Text>
-            <Text style={styles.docLabel} numberOfLines={1}>
+            <Text style={styles.title} numberOfLines={1}>
               {documentName || 'Document'}
             </Text>
           </View>
@@ -219,11 +220,19 @@ export default function DraftReviewScreen({ navigation, route }) {
           <Text style={styles.openDocChevron}>↗</Text>
         </TouchableOpacity>
 
+        <View style={styles.aiHint}>
+          <Text style={styles.aiHintEmoji}>🤖</Text>
+          <Text style={styles.aiHintText}>
+            Sarvam AI extracted these reminders. Review the title, type, and date,
+            then publish to send to the patient.
+          </Text>
+        </View>
+
         {drafts.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              No drafts left. All reviewed.
-            </Text>
+            <Text style={styles.emptyEmoji}>✅</Text>
+            <Text style={styles.emptyTitle}>All reviewed</Text>
+            <Text style={styles.emptyText}>No drafts left for this document.</Text>
             <TouchableOpacity
               style={styles.doneBtn}
               onPress={() => navigation.goBack()}
@@ -232,10 +241,12 @@ export default function DraftReviewScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         ) : (
-          drafts.map((d) => (
+          drafts.map((d, idx) => (
             <DraftCard
               key={d._id}
               draft={d}
+              index={idx + 1}
+              total={drafts.length}
               busy={busyIds.has(d._id)}
               onChange={(k, v) => updateField(d._id, k, v)}
               onPublish={() => handlePublish(d)}
@@ -263,11 +274,14 @@ export default function DraftReviewScreen({ navigation, route }) {
   );
 }
 
-function DraftCard({ draft, busy, onChange, onPublish, onReject }) {
+function DraftCard({ draft, index, total, busy, onChange, onPublish, onReject }) {
   const isVisit = draft.type === 'visit';
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
+        <Text style={styles.cardCounter}>
+          DRAFT {index} OF {total}
+        </Text>
         <TouchableOpacity
           style={[
             styles.typePill,
@@ -281,7 +295,6 @@ function DraftCard({ draft, busy, onChange, onPublish, onReject }) {
             {isVisit ? '👤 VISIT' : '🧪 TEST'}
           </Text>
         </TouchableOpacity>
-        <Text style={styles.tapToToggle}>tap to switch</Text>
       </View>
 
       <Text style={styles.fieldLabel}>Title</Text>
@@ -307,21 +320,21 @@ function DraftCard({ draft, busy, onChange, onPublish, onReject }) {
 
       <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: C.redPale }]}
+          style={[styles.actionBtn, styles.rejectBtn]}
           onPress={onReject}
           disabled={busy}
         >
           <Text style={[styles.actionText, { color: C.red }]}>✗ Reject</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: C.greenPale }]}
+          style={[styles.actionBtn, styles.publishBtn]}
           onPress={onPublish}
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color={C.green} size="small" />
+            <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={[styles.actionText, { color: C.green }]}>
+            <Text style={[styles.actionText, { color: '#fff' }]}>
               ✓ Publish
             </Text>
           )}
@@ -333,44 +346,54 @@ function DraftCard({ draft, busy, onChange, onPublish, onReject }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+
   header: {
-    backgroundColor: C.teal,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    gap: 10,
+    backgroundColor: C.navy,
+    gap: 4,
   },
   backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  patientLabel: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  docLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
+  backIcon: { color: '#fff', fontSize: 28, fontWeight: '300', marginTop: -2 },
+  greeting: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  title: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 2 },
 
   body: { flex: 1 },
-  bodyContent: { padding: 12, paddingBottom: 32 },
+  bodyContent: { padding: 16, paddingBottom: 32 },
 
   openDocBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: C.tealPale,
+    backgroundColor: C.accentPale,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#B2D8CF',
+    borderColor: '#D5CCF8',
   },
   openDocIcon: { fontSize: 18 },
-  openDocText: { flex: 1, color: C.teal, fontSize: 14, fontWeight: '700' },
-  openDocChevron: { color: C.teal, fontSize: 16, fontWeight: '700' },
+  openDocText: { flex: 1, color: C.accent, fontSize: 14, fontWeight: '700' },
+  openDocChevron: { color: C.accent, fontSize: 16, fontWeight: '700' },
+
+  aiHint: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    backgroundColor: '#F8F7FE',
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  aiHintEmoji: { fontSize: 16 },
+  aiHintText: { flex: 1, fontSize: 12, color: C.muted, lineHeight: 17 },
 
   card: {
     backgroundColor: C.card,
@@ -383,16 +406,21 @@ const styles = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 10,
+  },
+  cardCounter: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: C.muted,
+    letterSpacing: 0.8,
   },
   typePill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: 999,
   },
-  typePillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  tapToToggle: { fontSize: 10, color: C.muted, fontStyle: 'italic' },
+  typePillText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
   fieldLabel: {
     fontSize: 11,
@@ -417,29 +445,33 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 14,
   },
   actionBtn: {
     flex: 1,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
-  actionText: { fontSize: 13, fontWeight: '700' },
+  rejectBtn: { backgroundColor: C.redPale },
+  publishBtn: { backgroundColor: C.green },
+  actionText: { fontSize: 13, fontWeight: '800' },
 
   emptyCard: {
     backgroundColor: C.card,
     borderRadius: 12,
-    padding: 24,
+    padding: 28,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: 'center',
   },
+  emptyEmoji: { fontSize: 32, marginBottom: 6 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 4 },
   emptyText: { fontSize: 13, color: C.muted, textAlign: 'center', marginBottom: 14 },
   doneBtn: {
-    backgroundColor: C.teal,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+    backgroundColor: C.accent,
+    paddingHorizontal: 28,
+    paddingVertical: 11,
     borderRadius: 8,
   },
   doneBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
@@ -452,10 +484,10 @@ const styles = StyleSheet.create({
     borderTopColor: C.border,
   },
   publishAllBtn: {
-    backgroundColor: C.teal,
+    backgroundColor: C.green,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  publishAllText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  publishAllText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });

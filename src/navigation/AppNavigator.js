@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import AiChatFab from '../components/AiChatFab';
 
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -16,11 +20,16 @@ import WeeklyReportScreen from '../screens/WeeklyReportScreen';
 import MedicalRecordsScreen from '../screens/MedicalRecordsScreen';
 import DraftsListScreen from '../screens/DraftsListScreen';
 import DraftReviewScreen from '../screens/DraftReviewScreen';
+import AiExplainerScreen from '../screens/AiExplainerScreen';
+import PlaybookActiveScreen from '../screens/PlaybookActiveScreen';
+import CaregiverDashboardScreen from '../screens/CaregiverDashboardScreen';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 export default function AppNavigator() {
   const { user, loading } = useAuth();
+  const [routeName, setRouteName] = useState(null);
 
   if (loading) {
     return (
@@ -30,8 +39,28 @@ export default function AppNavigator() {
     );
   }
 
+  const isPatientAuthed =
+    !!user && user.profileCompleted && user.role === 'patient';
+  const showFab = isPatientAuthed && routeName !== 'AiExplainer';
+
+  const updateRouteName = () => {
+    const r = navigationRef.getCurrentRoute();
+    setRouteName(r?.name || null);
+  };
+
+  const openAiChat = () => {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate('AiExplainer');
+    }
+  };
+
   return (
-    <NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={updateRouteName}
+        onStateChange={updateRouteName}
+      >
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: '#1A6B5A' },
@@ -45,18 +74,36 @@ export default function AppNavigator() {
             component={LoginScreen}
             options={{ headerShown: false }}
           />
+        ) : user.role === 'caregiver' ? (
+          <>
+            <Stack.Screen
+              name="CaregiverDashboard"
+              component={CaregiverDashboardScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
+              options={({ route }) => ({ title: route.params?.name || 'Chat' })}
+            />
+          </>
         ) : !user.profileCompleted ? (
           <Stack.Screen
             name="Profile"
             component={ProfileScreen}
-            options={{ title: 'Complete Your Profile' }}
+            options={{ headerShown: false }}
           />
         ) : user.role === 'navigator' ? (
           <>
             <Stack.Screen
               name="NavigatorDashboard"
               component={NavigatorDashboardScreen}
-              options={{ title: 'Navigator Dashboard' }}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PlaybookActive"
+              component={PlaybookActiveScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Chat"
@@ -114,17 +161,24 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ title: 'My Profile' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
               options={({ route }) => ({ title: route.params?.name || 'Chat' })}
             />
+            <Stack.Screen
+              name="AiExplainer"
+              component={AiExplainerScreen}
+              options={{ headerShown: false }}
+            />
           </>
         )}
-      </Stack.Navigator>
-    </NavigationContainer>
+        </Stack.Navigator>
+      </NavigationContainer>
+      {showFab ? <AiChatFab onPress={openAiChat} /> : null}
+    </View>
   );
 }
 

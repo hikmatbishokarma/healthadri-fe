@@ -29,8 +29,17 @@ api.interceptors.request.use(async (config) => {
 
 export const sendOtp = (phone) => api.post('/auth/send-otp', { phone });
 
-export const verifyOtp = (phone, otp) =>
-  api.post('/auth/verify-otp', { phone, otp });
+export const verifyOtp = (phone, otp, role, inviteCode) =>
+  api.post('/auth/verify-otp', {
+    phone,
+    otp,
+    ...(role && { role }),
+    ...(inviteCode && { inviteCode }),
+  });
+
+export const generateInvite = () => api.post('/patients/invite');
+
+export const getCaregiverPatient = () => api.get('/caregiver/patient');
 
 export const getMe = () => api.get('/users/me');
 
@@ -52,6 +61,9 @@ export const getLatestTriage = (patientId) =>
 
 export const getNavigatorDashboard = (navigatorId) =>
   api.get(`/navigator/dashboard/${navigatorId}`);
+
+export const getNavigatorPlaybookRun = (patientId) =>
+  api.get(`/navigator/playbook-run/${patientId}`);
 
 export const getMessages = (userId, withUserId) =>
   api.get(`/messages/${userId}`, { params: { with: withUserId } });
@@ -103,5 +115,14 @@ export const updateTask = (id, payload) => api.patch(`/tasks/${id}`, payload);
 export const publishTask = (id) => api.post(`/tasks/${id}/publish`);
 
 export const deleteTask = (id) => api.delete(`/tasks/${id}`);
+
+export const explainAi = (formData) =>
+  api.post('/ai/explain', formData, {
+    headers:
+      Platform.OS === 'web'
+        ? {}
+        : { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  });
 
 export default api;

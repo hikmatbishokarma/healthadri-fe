@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -18,6 +19,7 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
 function dueLabel(value) {
@@ -31,25 +33,33 @@ function dueLabel(value) {
   return d.toLocaleDateString();
 }
 
+function timeGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   teal: '#1A6B5A',
   tealDark: '#0D4035',
   tealPale: '#E8F5F1',
   tealMid: '#B2D8CF',
-  saffron: '#E8860A',
   red: '#E53935',
   redPale: '#FEE2E2',
   redBorder: '#FECACA',
   amber: '#F59E0B',
   green: '#22C55E',
-  purple: '#4F46E5',
   bg: '#F4F6F8',
   card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  text: '#111827',
+  textSub: '#4B5563',
+  muted: '#9CA3AF',
+  border: '#E5E7EB',
 };
 
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function PatientDashboardScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [triage, setTriage] = useState(null);
@@ -75,9 +85,7 @@ export default function PatientDashboardScreen({ navigation }) {
       (apptRes.data || []).forEach((a) => {
         const when = new Date(a.scheduledAt).getTime();
         const finalized = ['completed', 'cancelled', 'missed'].includes(a.status);
-        if (!finalized && when >= now) {
-          items.push({ kind: 'appointment', when, data: a });
-        }
+        if (!finalized && when >= now) items.push({ kind: 'appointment', when, data: a });
       });
       (remRes.data || []).forEach((r) => {
         const when = new Date(r.date).getTime();
@@ -100,9 +108,7 @@ export default function PatientDashboardScreen({ navigation }) {
             String(m.senderId) === String(navId) &&
             now - new Date(m.createdAt).getTime() <= RECENT_MS,
         )
-        .sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )[0];
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
       setRecentNavMessage(fromNav || null);
     } catch {
       setTriage(null);
@@ -114,14 +120,9 @@ export default function PatientDashboardScreen({ navigation }) {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchAll();
-  };
+  const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
   const alert = triage?.alert;
   const isFromToday = (() => {
@@ -139,158 +140,174 @@ export default function PatientDashboardScreen({ navigation }) {
         ? { face: '😐', text: 'Some symptoms today', color: C.amber }
         : severity === 'LOW'
           ? { face: '🙂', text: 'Feeling well today', color: C.green }
-          : { face: '☐', text: 'Tap to check in', color: C.muted };
+          : { face: '🙂', text: 'Tap to check in', color: C.muted };
 
   const comingSoon = (label) => Alert.alert(label, 'Coming soon');
 
+  const initials = user?.name?.split(' ').map(w => w[0]).slice(0, 2).join('') ?? 'P';
+  const greeting = timeGreeting();
+  const statusHint =
+    severity === 'HIGH' ? 'Please take care and rest well.' :
+    severity === 'MED'  ? 'Monitor your symptoms closely.' :
+    severity === 'LOW'  ? "You're doing great, keep it up!" :
+    'Log your symptoms to get started.';
+
+  const quickActions = [
+    { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: '#E8F5F1', tint: '#1A6B5A', onPress: () => navigation.navigate('Symptom') },
+    { icon: '💬',                                               label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
+    { icon: '🔔',                                               label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
+    { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
+    { img: require('../../assets/icons/insurance-card.png'), label: 'Insurance\nHelp',  bg: '#FEF3C7', tint: '#D97706', onPress: () => comingSoon('Insurance Help') },
+    { img: require('../../assets/icons/health.png'),          label: 'My\nWellbeing',    bg: '#DCFCE7', tint: '#16A34A', onPress: () => comingSoon('My Wellbeing') },
+    { img: require('../../assets/icons/book.png'),            label: 'Learn',             bg: '#EEF2FF', tint: '#4338CA', onPress: () => comingSoon('Awareness') },
+    { icon: '🤲',                                             label: 'Caregiver',         bg: '#FFEDD5',                  onPress: () => comingSoon('Caregiver') },
+  ];
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
+    <View style={s.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>నమస్కారం, Good day</Text>
-              <Text style={styles.name}>{user?.name || 'Patient'}</Text>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
+        <View style={s.header}>
+          <View style={s.headerRow}>
+            <TouchableOpacity style={s.avatar} onPress={() => navigation.navigate('Profile')} activeOpacity={0.75}>
+              <Text style={s.avatarText}>{initials}</Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={s.greeting}>{greeting},</Text>
+              <Text style={s.name}>{user?.name || 'Patient'} 👋</Text>
             </View>
-            <View style={styles.headerActions}>
-              <View style={styles.langBadge}>
-                <Text style={styles.langText}>EN</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.hdrBtn}
-                onPress={() => navigation.navigate('Profile')}
-              >
-                <Text style={{ fontSize: 16 }}>👤</Text>
-              </TouchableOpacity>
+            <View style={s.langBadge}>
+              <Text style={s.langText}>EN</Text>
             </View>
-          </View>
-
-          <View style={styles.statusStrip}>
-            <Text style={styles.statusFace}>{status.face}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.statusLabel}>How you're doing</Text>
-              <Text style={styles.statusText}>{status.text}</Text>
-            </View>
+            <TouchableOpacity style={s.bellBtn} onPress={() => Alert.alert('Notifications', 'No new notifications')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 18 }}>🔔</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
 
       <ScrollView
-        style={styles.body}
-        contentContainerStyle={styles.bodyContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={s.body}
+        contentContainerStyle={s.bodyContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
       >
-
-        <TouchableOpacity
-          style={styles.weeklyLink}
-          onPress={() => navigation.navigate('WeeklyReport')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.weeklyLinkIcon}>📊</Text>
-          <Text style={styles.weeklyLinkText}>See your weekly report</Text>
-          <Text style={styles.weeklyLinkChevron}>›</Text>
+        {/* Status card */}
+        <TouchableOpacity style={s.statusCard} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.92}>
+          <View style={s.statusDeco} pointerEvents="none">
+            <Text style={s.decoHeart}>💚</Text>
+            <Text style={s.decoPlus}>+</Text>
+          </View>
+          <Text style={s.statusFace}>{status.face}</Text>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.statusLabel}>How you're feeling today?</Text>
+            <Text style={s.statusTitle}>{status.text}</Text>
+            <Text style={s.statusHint}>{statusHint}</Text>
+          </View>
+          <View style={s.logBtn}>
+            <Text style={s.logBtnText}>Log Symptoms ›</Text>
+          </View>
         </TouchableOpacity>
 
-        <Text style={styles.sectionLabel}>Quick Actions</Text>
-        <View style={styles.quickGrid}>
-          <QuickItem icon="🩺" label="Check Symptoms" onPress={() => navigation.navigate('Symptom')} />
-          <QuickItem
-            icon="💬"
-            label="Message Team"
-            onPress={() =>
-              navigation.navigate('Chat', {
-                withUserId: user?.assignedNavigatorId,
-                name: 'Navigator',
-              })
-            }
-          />
-          <QuickItem icon="📅" label="Reminders" onPress={() => navigation.navigate('Reminders')} />
-          <QuickItem icon="🏥" label="Find Hospital" onPress={() => navigation.navigate('Hospitals')} />
-          <QuickItem icon="💰" label="Insurance Help" onPress={() => comingSoon('Insurance Help')} />
-          <QuickItem icon="💚" label="My Wellbeing" onPress={() => comingSoon('My Wellbeing')} />
-          <QuickItem icon="📚" label="Learn" onPress={() => comingSoon('Awareness')} />
-          <QuickItem icon="🤲" label="Caregiver" onPress={() => comingSoon('Caregiver')} />
+        {/* Weekly report */}
+        <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
+          <View style={s.weeklyIconBox}>
+            <Text style={{ fontSize: 22 }}>📊</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.weeklyTitle}>See your weekly report</Text>
+            <Text style={s.weeklySub}>Track your health progress</Text>
+          </View>
+          <Text style={s.chevron}>›</Text>
+        </TouchableOpacity>
+
+        {/* Quick Actions */}
+        <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
+        <View style={s.quickGrid}>
+          {quickActions.map((item, i) => (
+            <TouchableOpacity key={i} style={s.quickItem} onPress={item.onPress} activeOpacity={0.7}>
+              <View style={[s.quickIconBox, { backgroundColor: item.bg }]}>
+                {item.img
+                  ? <Image source={item.img} style={[s.quickIconImg, item.tint && { tintColor: item.tint }]} />
+                  : <Text style={s.quickIcon}>{item.icon}</Text>}
+              </View>
+              <Text style={s.quickLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {(urgentReminder || recentNavMessage) && (
-          <Text style={styles.sectionLabel}>Today's Alerts</Text>
-        )}
+        {/* Alerts */}
         {urgentReminder && (
           <TouchableOpacity
-            style={[
-              styles.alertCard,
-              { backgroundColor: C.redPale, borderColor: C.redBorder },
-            ]}
+            style={[s.alertCard, { backgroundColor: C.redPale, borderColor: C.redBorder }]}
             onPress={() => navigation.navigate('Reminders')}
             activeOpacity={0.7}
           >
-            <Text style={styles.alertIcon}>⚠️</Text>
+            <Text style={s.alertIcon}>⚠️</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.alertTitle}>
-                {(urgentReminder.type || 'reminder').toUpperCase()} due{' '}
-                {dueLabel(urgentReminder.date)}
+              <Text style={s.alertTitle}>
+                {(urgentReminder.type || 'Reminder').toUpperCase()} due {dueLabel(urgentReminder.date)}
               </Text>
-              <Text style={styles.alertDesc}>{urgentReminder.title}</Text>
+              <Text style={s.alertDesc}>{urgentReminder.title}</Text>
             </View>
           </TouchableOpacity>
         )}
         {recentNavMessage && (
           <TouchableOpacity
-            style={[
-              styles.alertCard,
-              { backgroundColor: C.tealPale, borderColor: C.tealMid },
-            ]}
-            onPress={() =>
-              navigation.navigate('Chat', {
-                withUserId: user?.assignedNavigatorId,
-                name: 'Navigator',
-              })
-            }
+            style={[s.alertCard, { backgroundColor: C.tealPale, borderColor: C.tealMid }]}
+            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
             activeOpacity={0.7}
           >
-            <Text style={styles.alertIcon}>💬</Text>
+            <Text style={s.alertIcon}>💬</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.alertTitle}>Message from your navigator</Text>
-              <Text style={styles.alertDesc} numberOfLines={2}>
-                "{recentNavMessage.text}"
-              </Text>
+              <Text style={s.alertTitle}>Message from your navigator</Text>
+              <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
             </View>
           </TouchableOpacity>
         )}
 
-        <Text style={styles.sectionLabel}>Next Up</Text>
-        <NextUpCard
-          nextItem={nextItem}
-          onPress={() => navigation.navigate('Reminders')}
-        />
+        {/* Next Up */}
+        <Text style={s.sectionLabel}>NEXT UP</Text>
+        <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
 
-        <TouchableOpacity style={styles.signOut} onPress={signOut}>
-          <Text style={styles.signOutText}>Sign out</Text>
+        {/* Navigator contact */}
+        <TouchableOpacity
+          style={s.navCard}
+          onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
+          activeOpacity={0.75}
+        >
+          <View style={s.navIconBox}>
+            <Text style={{ fontSize: 26 }}>🛡️</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.navTitle}>Speak to your care navigator</Text>
+            <Text style={s.navSub}>We're here to support you every step of the way</Text>
+          </View>
+          <Text style={s.chevron}>›</Text>
+        </TouchableOpacity>
+
+        {/* Sign out */}
+        <TouchableOpacity style={s.signOut} onPress={signOut}>
+          <Text style={s.signOutText}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
-function QuickItem({ icon, label, onPress }) {
-  return (
-    <TouchableOpacity style={styles.quickItem} onPress={onPress}>
-      <Text style={styles.quickIcon}>{icon}</Text>
-      <Text style={styles.quickLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function NextUpCard({ nextItem, onPress }) {
   if (!nextItem) {
     return (
-      <TouchableOpacity style={styles.nextEmpty} onPress={onPress} activeOpacity={0.7}>
-        <Text style={styles.nextEmptyText}>
-          Nothing scheduled. Tap to add an appointment or upload a prescription.
-        </Text>
-      </TouchableOpacity>
+      <View style={s.nextEmpty}>
+        <Text style={s.nextEmptyIcon}>📅</Text>
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={s.nextEmptyTitle}>No upcoming appointments</Text>
+          <Text style={s.nextEmptySub}>Your appointments will appear here</Text>
+        </View>
+      </View>
     );
   }
 
@@ -304,224 +321,250 @@ function NextUpCard({ nextItem, onPress }) {
   if (isAppt) {
     if (data.doctor) subtitleParts.push(data.doctor);
     const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (data.location) subtitleParts.push(`🏥 ${data.location} · ${time}`);
-    else subtitleParts.push(time);
+    subtitleParts.push(data.location ? `🏥 ${data.location} · ${time}` : time);
   } else {
-    subtitleParts.push(
-      `🔔 ${(data.type || 'reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`,
-    );
+    subtitleParts.push(`🔔 ${(data.type || 'Reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`);
   }
 
   return (
-    <TouchableOpacity style={styles.apptCard} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.apptDate}>
-        <Text style={styles.apptDay}>{day}</Text>
-        <Text style={styles.apptMon}>{mon}</Text>
+    <TouchableOpacity style={s.apptCard} onPress={onPress} activeOpacity={0.7}>
+      <View style={s.apptDateBox}>
+        <Text style={s.apptDay}>{day}</Text>
+        <Text style={s.apptMon}>{mon}</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.apptTitle} numberOfLines={2}>
-          {data.title}
-        </Text>
-        {subtitleParts[0] ? (
-          <Text style={styles.apptDoc} numberOfLines={1}>
-            {subtitleParts[0]}
-          </Text>
-        ) : null}
-        {subtitleParts[1] ? (
-          <Text style={styles.apptTime} numberOfLines={1}>
-            {subtitleParts[1]}
-          </Text>
-        ) : null}
+      <View style={{ flex: 1, marginLeft: 14 }}>
+        <Text style={s.apptTitle} numberOfLines={2}>{data.title}</Text>
+        {subtitleParts[0] ? <Text style={s.apptSub} numberOfLines={1}>{subtitleParts[0]}</Text> : null}
+        {subtitleParts[1] ? <Text style={s.apptSub} numberOfLines={1}>{subtitleParts[1]}</Text> : null}
       </View>
-      <Text style={styles.nextChevron}>›</Text>
+      <Text style={s.chevron}>›</Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
 
+  // ── Header ──
   header: {
-    backgroundColor: C.teal,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.border,
   },
-  headerTop: {
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  avatar: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: C.teal,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  greeting: { color: C.muted, fontSize: 11 },
+  name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 1 },
+  langBadge: {
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, marginRight: 8,
+  },
+  langText: { color: C.text, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  bellBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Status card (body) ──
+  statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: '#EDF7F2',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
-  greeting: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-  name: { color: '#fff', fontSize: 17, fontWeight: '700', marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  langBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  langText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  hdrBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  statusDeco: {
+    position: 'absolute',
+    right: -14,
+    top: -14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  decoHeart: { fontSize: 90, opacity: 0.18 },
+  decoPlus: {
+    position: 'absolute',
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#1A6B5A',
+    opacity: 0.25,
+    top: 20,
+    right: 18,
   },
-  statusFace: { fontSize: 30, lineHeight: 34 },
-  statusLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
-  statusText: { color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 1 },
-  statusChevron: { color: 'rgba(255,255,255,0.6)', fontSize: 22, fontWeight: '300' },
-
-  weeklyLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: C.card,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  weeklyLinkIcon: { fontSize: 18 },
-  weeklyLinkText: { flex: 1, fontSize: 13, fontWeight: '600', color: C.text },
-  weeklyLinkChevron: { color: C.muted, fontSize: 22, fontWeight: '300' },
-
-  body: { flex: 1 },
-  bodyContent: { padding: 12, paddingBottom: 32 },
-
-  careCard: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-    backgroundColor: C.tealPale,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#B2D8CF',
-  },
-  careIcon: { fontSize: 24, marginTop: 2 },
-  careTitle: { color: C.teal, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  careDesc: {
-    color: C.text,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  careAction: {
-    alignSelf: 'flex-start',
-    backgroundColor: C.teal,
+  statusFace: { fontSize: 40, lineHeight: 46 },
+  statusLabel: { fontSize: 11, color: C.muted, marginBottom: 3 },
+  statusTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 3, lineHeight: 22 },
+  statusHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
+  logBtn: {
+    alignSelf: 'center',
+    marginLeft: 10,
+    borderWidth: 1.5,
+    borderColor: C.teal,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 14,
   },
-  careActionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  logBtnText: { color: C.teal, fontSize: 11, fontWeight: '700' },
 
+  // ── Body ──
+  body: { flex: 1 },
+  bodyContent: { padding: 14, paddingBottom: 40 },
+
+  // ── Weekly report card ──
+  weeklyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.card,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  weeklyIconBox: {
+    width: 44, height: 44, borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  weeklyTitle: { fontSize: 14, fontWeight: '700', color: C.text },
+  weeklySub: { fontSize: 12, color: C.muted, marginTop: 2 },
+
+  // ── Section label ──
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.muted,
-    textTransform: 'uppercase',
+    fontSize: 11, fontWeight: '700', color: C.muted,
     letterSpacing: 0.8,
-    marginTop: 6,
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
+  // ── Quick actions grid ──
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 8,
+    gap: 10,
+    marginBottom: 18,
   },
   quickItem: {
-    width: '23.5%',
+    width: '22%',
+    flexGrow: 1,
     backgroundColor: C.card,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  quickIcon: { fontSize: 22, marginBottom: 4 },
+  quickIconBox: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickIcon: { fontSize: 22 },
+  quickIconImg: { width: 26, height: 26, resizeMode: 'contain' },
   quickLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: C.text,
-    textAlign: 'center',
-    lineHeight: 12,
+    fontSize: 10, fontWeight: '600', color: C.text,
+    textAlign: 'center', lineHeight: 13,
   },
 
+  // ── Alert cards ──
   alertCard: {
     flexDirection: 'row',
-    gap: 10,
     alignItems: 'flex-start',
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
+    gap: 10,
   },
-  alertIcon: { fontSize: 18, marginTop: 1 },
+  alertIcon: { fontSize: 16, marginTop: 1 },
   alertTitle: { fontSize: 12, fontWeight: '700', color: C.text, marginBottom: 3 },
   alertDesc: { fontSize: 11, color: C.muted, lineHeight: 16 },
 
+  // ── Next Up ──
+  nextEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  nextEmptyIcon: { fontSize: 36 },
+  nextEmptyTitle: { fontSize: 14, fontWeight: '600', color: C.text, marginBottom: 3 },
+  nextEmptySub: { fontSize: 12, color: C.muted },
+
   apptCard: {
     flexDirection: 'row',
-    gap: 10,
     alignItems: 'center',
     backgroundColor: C.card,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
     borderLeftWidth: 3,
     borderLeftColor: C.teal,
-    borderWidth: 1,
-    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  apptDate: {
+  apptDateBox: {
     backgroundColor: C.tealPale,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8,
+    alignItems: 'center', minWidth: 48,
   },
-  apptDay: { fontSize: 18, fontWeight: '700', color: C.teal, lineHeight: 20 },
-  apptMon: { fontSize: 9, color: C.teal, fontWeight: '600' },
-  apptTitle: { fontSize: 12, fontWeight: '700', color: C.text },
-  apptDoc: { fontSize: 10, color: C.muted, marginTop: 2 },
-  apptTime: { fontSize: 10, color: C.muted, marginTop: 1 },
-  apptBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  apptBtnPrimaryText: { color: '#fff', fontSize: 9, fontWeight: '700' },
-  apptBtnSecondaryText: { color: C.text, fontSize: 9, fontWeight: '700' },
-  nextChevron: { color: C.muted, fontSize: 24, fontWeight: '300', marginLeft: 4 },
-  nextEmpty: {
-    backgroundColor: C.card,
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: C.border,
-  },
-  nextEmptyText: { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 16 },
+  apptDay: { fontSize: 20, fontWeight: '700', color: C.teal, lineHeight: 22 },
+  apptMon: { fontSize: 9, color: C.teal, fontWeight: '700', letterSpacing: 0.5 },
+  apptTitle: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 },
+  apptSub: { fontSize: 11, color: C.muted, marginTop: 1 },
 
-  signOut: { marginTop: 24, alignItems: 'center', paddingVertical: 8 },
+  // ── Navigator contact card ──
+  navCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.tealPale,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 28,
+  },
+  navIconBox: {
+    width: 52, height: 52, borderRadius: 12,
+    backgroundColor: 'rgba(26,107,90,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navTitle: { fontSize: 14, fontWeight: '700', color: C.teal, marginBottom: 3 },
+  navSub: { fontSize: 12, color: C.textSub, lineHeight: 17 },
+
+  // ── Shared ──
+  chevron: { color: C.muted, fontSize: 24, fontWeight: '300', marginLeft: 4 },
+  signOut: { alignItems: 'center', paddingVertical: 6, marginTop: 4 },
   signOutText: { color: C.muted, fontSize: 12 },
 });

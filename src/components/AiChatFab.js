@@ -1,12 +1,7 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import { Image, TouchableOpacity, StyleSheet, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const BOT_ICON = require('../../assets/bot-icon.png');
 
 export default function AiChatFab({ onPress }) {
   const insets = useSafeAreaInsets();
@@ -22,8 +17,7 @@ export default function AiChatFab({ onPress }) {
         accessibilityRole="button"
         accessibilityLabel="Open AI medical explainer"
       >
-        <Text style={styles.icon}>💬</Text>
-        <View style={styles.dot} />
+        <Image source={BOT_ICON} style={styles.icon} resizeMode="cover" />
       </TouchableOpacity>
     </View>
   );
@@ -36,33 +30,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1A6B5A',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.22,
-        shadowRadius: 10,
+        shadowColor: '#1A6B5A',
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 8 },
-      web: { boxShadow: '0 6px 16px rgba(0,0,0,0.22)' },
+      android: { elevation: 10 },
+      web: { boxShadow: '0 4px 20px rgba(26,107,90,0.3)' },
     }),
   },
-  icon: { fontSize: 26, lineHeight: 30 },
-  dot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#22C55E',
-    borderWidth: 2,
-    borderColor: '#fff',
+  icon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
 });

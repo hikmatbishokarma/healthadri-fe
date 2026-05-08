@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -236,14 +238,19 @@ export default function ProfileScreen({ navigation }) {
   // ─── Profile view / edit mode ────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+      <StatusBar barStyle="dark-content" backgroundColor="#EDF7F2" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Compact profile header */}
+        {/* Profile header — mint green, like status card */}
+        <SafeAreaView edges={['top']} style={{ backgroundColor: '#EDF7F2' }}>
         <View style={styles.profileHeader}>
+          {/* Decorative shield — like the heart on the home status card */}
+          <View style={styles.headerDeco} pointerEvents="none">
+            <Image source={require('../../assets/icons/medical-shield.png')} style={styles.decoShield} />
+          </View>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.navigate('PatientDashboard')}
@@ -264,6 +271,7 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
+        </SafeAreaView>
 
         {!editMode ? (
           // ── View mode ──
@@ -280,7 +288,7 @@ export default function ProfileScreen({ navigation }) {
             </InfoCard>
 
             <InfoCard title="Treatment Centre">
-              <InfoRow icon="🏥" label="Hospital" value={hospitalName} last />
+              <InfoRow img={require('../../assets/icons/hospital.png')} tint="#1D4ED8" label="Hospital" value={hospitalName} last />
             </InfoCard>
 
             <TouchableOpacity
@@ -289,7 +297,7 @@ export default function ProfileScreen({ navigation }) {
               activeOpacity={0.75}
             >
               <View style={styles.recordsIconBox}>
-                <Text style={{ fontSize: 20 }}>📁</Text>
+                <Image source={require('../../assets/icons/medical-records.png')} style={{ width: 24, height: 24, resizeMode: 'contain', tintColor: '#1A6B5A' }} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.recordsTitle}>My Medical Records</Text>
@@ -433,10 +441,12 @@ function InfoCard({ title, children }) {
   );
 }
 
-function InfoRow({ icon, label, value, last }) {
+function InfoRow({ icon, img, tint, label, value, last }) {
   return (
     <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
-      <Text style={styles.infoRowIcon}>{icon}</Text>
+      {img
+        ? <Image source={img} style={[styles.infoRowImg, tint && { tintColor: tint }]} />
+        : <Text style={styles.infoRowIcon}>{icon}</Text>}
       <Text style={styles.infoRowLabel}>{label}</Text>
       <Text style={[styles.infoRowValue, !value && styles.infoRowEmpty]}>
         {value || '—'}
@@ -481,33 +491,43 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
 
-  // ── Profile header (view mode) — compact horizontal ──
+  // ── Profile header (view mode) — mint green, like status card ──
   profileHeader: {
-    backgroundColor: C.primaryDark,
+    backgroundColor: '#EDF7F2',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 14,
+    paddingTop: 12,
+    paddingBottom: 16,
     gap: 10,
+    overflow: 'hidden',
   },
+  headerDeco: {
+    position: 'absolute',
+    right: 80,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  decoShield: { width: 90, height: 90, resizeMode: 'contain', opacity: 0.18, tintColor: C.primary },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  backBtnText: { color: C.white, fontSize: 18, fontWeight: '600', marginTop: -1 },
+  backBtnText: { color: C.text, fontSize: 18, fontWeight: '600', marginTop: -1 },
   avatarCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: C.primary,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -522,22 +542,22 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 16,
     fontWeight: '700',
-    color: C.white,
+    color: C.text,
   },
   profileRole: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: C.textSub,
     marginTop: 1,
   },
   editPill: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: C.white,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1.5,
+    borderColor: C.primary,
   },
-  editPillText: { color: C.white, fontSize: 13, fontWeight: '600' },
+  editPillText: { color: C.primary, fontSize: 13, fontWeight: '700' },
 
   // ── Form card ──
   formCard: {
@@ -618,6 +638,7 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
   },
   infoRowIcon: { fontSize: 16, marginRight: 12, width: 24, textAlign: 'center' },
+  infoRowImg: { width: 20, height: 20, resizeMode: 'contain', marginRight: 12 },
   infoRowLabel: { fontSize: 13, color: C.textSub, fontWeight: '500', width: 90 },
   infoRowValue: { fontSize: 14, color: C.text, fontWeight: '600', flex: 1 },
   infoRowEmpty: { color: C.textMuted, fontStyle: 'italic', fontWeight: '400' },

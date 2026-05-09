@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import {
   NavigationContainer,
@@ -23,6 +23,7 @@ import DraftReviewScreen from '../screens/DraftReviewScreen';
 import AiExplainerScreen from '../screens/AiExplainerScreen';
 import PlaybookActiveScreen from '../screens/PlaybookActiveScreen';
 import CaregiverDashboardScreen from '../screens/CaregiverDashboardScreen';
+import NavigatorChatScreen from '../screens/NavigatorChatScreen';
 
 const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -41,7 +42,7 @@ export default function AppNavigator() {
 
   const isPatientAuthed =
     !!user && user.profileCompleted && user.role === 'patient';
-  const showFab = isPatientAuthed && routeName !== 'AiExplainer';
+  const showFab = isPatientAuthed && routeName !== 'AiExplainer' && routeName !== 'Chat';
 
   const updateRouteName = () => {
     const r = navigationRef.getCurrentRoute();
@@ -125,6 +126,11 @@ export default function AppNavigator() {
               component={DraftReviewScreen}
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="NavigatorChat"
+              component={NavigatorChatScreen}
+              options={{ headerShown: false }}
+            />
           </>
         ) : (
           <>
@@ -177,7 +183,12 @@ export default function AppNavigator() {
         )}
         </Stack.Navigator>
       </NavigationContainer>
-      {showFab ? <AiChatFab onPress={openAiChat} /> : null}
+      {showFab ? (
+        <AiChatFab
+          onPress={openAiChat}
+          extraBottom={routeName === 'PatientDashboard' ? 72 : 0}
+        />
+      ) : null}
     </View>
   );
 }

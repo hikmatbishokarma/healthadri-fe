@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import {
   getLatestTriage,
   getAppointments,
@@ -142,6 +143,8 @@ export default function PatientDashboardScreen({ navigation }) {
           ? { face: '🙂', text: 'Feeling well today', color: C.green }
           : { face: '🙂', text: 'Tap to check in', color: C.muted };
 
+  const [activeTab, setActiveTab] = useState('Home');
+
   const comingSoon = (label) => Alert.alert(label, 'Coming soon');
 
   const initials = user?.name?.split(' ').map(w => w[0]).slice(0, 2).join('') ?? 'P';
@@ -163,135 +166,249 @@ export default function PatientDashboardScreen({ navigation }) {
     { icon: '🤲',                                             label: 'Caregiver',         bg: '#FFEDD5',                  onPress: () => comingSoon('Caregiver') },
   ];
 
+  const PATIENT_TABS = [
+    { id: 'Home',      icon: 'home-outline',       iconActive: 'home',       label: 'Home' },
+    { id: 'CheckIn',   icon: 'pulse-outline',       iconActive: 'pulse',      label: 'Check In' },
+    { id: 'Reminders', icon: 'alarm-outline',       iconActive: 'alarm',      label: 'Reminders',
+      onPress: () => navigation.navigate('Reminders') },
+    { id: 'Messages',  icon: 'chatbubble-outline',  iconActive: 'chatbubble', label: 'Messages',
+      onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
+    { id: 'Profile',   icon: 'person-outline',      iconActive: 'person',     label: 'Profile' },
+  ];
+
   return (
     <View style={s.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
+      {/* Header — always visible */}
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
         <View style={s.header}>
-          <View style={s.headerRow}>
-            <TouchableOpacity style={s.avatar} onPress={() => navigation.navigate('Profile')} activeOpacity={0.75}>
-              <Text style={s.avatarText}>{initials}</Text>
-            </TouchableOpacity>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={s.greeting}>{greeting},</Text>
-              <Text style={s.name}>{user?.name || 'Patient'} 👋</Text>
-            </View>
-            <View style={s.langBadge}>
-              <Text style={s.langText}>EN</Text>
-            </View>
-            <TouchableOpacity style={s.bellBtn} onPress={() => Alert.alert('Notifications', 'No new notifications')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 18 }}>🔔</Text>
-            </TouchableOpacity>
+          <View style={s.headerLogoMark}>
+            <View style={s.miniCrossH} />
+            <View style={s.miniCrossV} />
           </View>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={s.greeting}>{greeting},</Text>
+            <Text style={s.name}>{user?.name || 'Patient'} 👋</Text>
+          </View>
+          <TouchableOpacity
+            style={s.bellBtn}
+            onPress={() => Alert.alert('Notifications', 'No new notifications')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="notifications-outline" size={22} color="#1A3C34" />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
-      <ScrollView
-        style={s.body}
-        contentContainerStyle={s.bodyContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
-      >
-        {/* Status card */}
-        <TouchableOpacity style={s.statusCard} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.92}>
-          <View style={s.statusDeco} pointerEvents="none">
-            <Text style={s.decoHeart}>💚</Text>
-            <Text style={s.decoPlus}>+</Text>
-          </View>
-          <Text style={s.statusFace}>{status.face}</Text>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.statusLabel}>How you're feeling today?</Text>
-            <Text style={s.statusTitle}>{status.text}</Text>
-            <Text style={s.statusHint}>{statusHint}</Text>
-          </View>
-          <View style={s.logBtn}>
-            <Text style={s.logBtnText}>Log Symptoms ›</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Weekly report */}
-        <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
-          <View style={s.weeklyIconBox}>
-            <Text style={{ fontSize: 22 }}>📊</Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.weeklyTitle}>See your weekly report</Text>
-            <Text style={s.weeklySub}>Track your health progress</Text>
-          </View>
-          <Text style={s.chevron}>›</Text>
-        </TouchableOpacity>
-
-        {/* Quick Actions */}
-        <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
-        <View style={s.quickGrid}>
-          {quickActions.map((item, i) => (
-            <TouchableOpacity key={i} style={s.quickItem} onPress={item.onPress} activeOpacity={0.7}>
-              <View style={[s.quickIconBox, { backgroundColor: item.bg }]}>
-                {item.img
-                  ? <Image source={item.img} style={[s.quickIconImg, item.tint && { tintColor: item.tint }]} />
-                  : <Text style={s.quickIcon}>{item.icon}</Text>}
-              </View>
-              <Text style={s.quickLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Alerts */}
-        {urgentReminder && (
-          <TouchableOpacity
-            style={[s.alertCard, { backgroundColor: C.redPale, borderColor: C.redBorder }]}
-            onPress={() => navigation.navigate('Reminders')}
-            activeOpacity={0.7}
-          >
-            <Text style={s.alertIcon}>⚠️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>
-                {(urgentReminder.type || 'Reminder').toUpperCase()} due {dueLabel(urgentReminder.date)}
-              </Text>
-              <Text style={s.alertDesc}>{urgentReminder.title}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        {recentNavMessage && (
-          <TouchableOpacity
-            style={[s.alertCard, { backgroundColor: C.tealPale, borderColor: C.tealMid }]}
-            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
-            activeOpacity={0.7}
-          >
-            <Text style={s.alertIcon}>💬</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>Message from your navigator</Text>
-              <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Next Up */}
-        <Text style={s.sectionLabel}>NEXT UP</Text>
-        <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
-
-        {/* Navigator contact */}
-        <TouchableOpacity
-          style={s.navCard}
-          onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
-          activeOpacity={0.75}
+      {/* ── HOME TAB ── */}
+      {activeTab === 'Home' && (
+        <ScrollView
+          style={s.body}
+          contentContainerStyle={s.bodyContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
         >
-          <View style={s.navIconBox}>
-            <Text style={{ fontSize: 26 }}>🛡️</Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.navTitle}>Speak to your care navigator</Text>
-            <Text style={s.navSub}>We're here to support you every step of the way</Text>
-          </View>
-          <Text style={s.chevron}>›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={s.statusCard} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.92}>
+            <View style={s.statusDeco} pointerEvents="none">
+              <Text style={s.decoHeart}>💚</Text>
+              <Text style={s.decoPlus}>+</Text>
+            </View>
+            <Text style={s.statusFace}>{status.face}</Text>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.statusLabel}>How you're feeling today?</Text>
+              <Text style={s.statusTitle}>{status.text}</Text>
+              <Text style={s.statusHint}>{statusHint}</Text>
+            </View>
+            <View style={s.logBtn}>
+              <Text style={s.logBtnText}>Log Symptoms ›</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* Sign out */}
-        <TouchableOpacity style={s.signOut} onPress={signOut}>
-          <Text style={s.signOutText}>Sign out</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
+            <View style={s.weeklyIconBox}>
+              <Text style={{ fontSize: 22 }}>📊</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.weeklyTitle}>See your weekly report</Text>
+              <Text style={s.weeklySub}>Track your health progress</Text>
+            </View>
+            <Text style={s.chevron}>›</Text>
+          </TouchableOpacity>
+
+          <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
+          <View style={s.quickGrid}>
+            {quickActions.map((item, i) => (
+              <TouchableOpacity key={i} style={s.quickItem} onPress={item.onPress} activeOpacity={0.7}>
+                <View style={[s.quickIconBox, { backgroundColor: item.bg }]}>
+                  {item.img
+                    ? <Image source={item.img} style={[s.quickIconImg, item.tint && { tintColor: item.tint }]} />
+                    : <Text style={s.quickIcon}>{item.icon}</Text>}
+                </View>
+                <Text style={s.quickLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {urgentReminder && (
+            <TouchableOpacity
+              style={[s.alertCard, { backgroundColor: C.redPale, borderColor: C.redBorder }]}
+              onPress={() => navigation.navigate('Reminders')}
+              activeOpacity={0.7}
+            >
+              <Text style={s.alertIcon}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>
+                  {(urgentReminder.type || 'Reminder').toUpperCase()} due {dueLabel(urgentReminder.date)}
+                </Text>
+                <Text style={s.alertDesc}>{urgentReminder.title}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {recentNavMessage && (
+            <TouchableOpacity
+              style={[s.alertCard, { backgroundColor: C.tealPale, borderColor: C.tealMid }]}
+              onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
+              activeOpacity={0.7}
+            >
+              <Text style={s.alertIcon}>💬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>Message from your navigator</Text>
+                <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          <Text style={s.sectionLabel}>NEXT UP</Text>
+          <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
+
+          <TouchableOpacity
+            style={s.navCard}
+            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
+            activeOpacity={0.75}
+          >
+            <View style={s.navIconBox}>
+              <Text style={{ fontSize: 26 }}>🛡️</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.navTitle}>Speak to your care navigator</Text>
+              <Text style={s.navSub}>We're here to support you every step of the way</Text>
+            </View>
+            <Text style={s.chevron}>›</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ── CHECK IN TAB ── */}
+      {activeTab === 'CheckIn' && (
+        <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
+          <View style={s.checkinHeader}>
+            <Text style={s.checkinTitle}>Daily Check-in</Text>
+            <Text style={s.checkinSubtitle}>How are you feeling today?</Text>
+          </View>
+
+          <TouchableOpacity
+            style={s.checkinCard}
+            onPress={() => navigation.navigate('Symptom')}
+            activeOpacity={0.88}
+          >
+            <View style={s.statusDeco} pointerEvents="none">
+              <Text style={s.decoHeart}>💚</Text>
+              <Text style={s.decoPlus}>+</Text>
+            </View>
+            <Text style={s.checkinFace}>{status.face}</Text>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={s.checkinCardLabel}>Today's status</Text>
+              <Text style={s.checkinCardTitle}>{status.text}</Text>
+              <Text style={s.checkinCardHint}>{statusHint}</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={s.checkinStartBtn} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.85}>
+            <Ionicons name="pulse" size={20} color="#fff" />
+            <Text style={s.checkinStartText}>Start Today's Check-in</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
+            <View style={s.weeklyIconBox}>
+              <Text style={{ fontSize: 22 }}>📊</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.weeklyTitle}>See your weekly report</Text>
+              <Text style={s.weeklySub}>View your symptom trends</Text>
+            </View>
+            <Text style={s.chevron}>›</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ── PROFILE TAB ── */}
+      {activeTab === 'Profile' && (
+        <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
+          <View style={s.profileCard}>
+            <View style={s.profileAvatar}>
+              <Text style={s.profileAvatarText}>{initials}</Text>
+            </View>
+            <Text style={s.profileName}>{user?.name || 'Patient'}</Text>
+            {user?.patientCode && (
+              <View style={s.profileCodeBadge}>
+                <Text style={s.profileCodeText}>{user.patientCode}</Text>
+              </View>
+            )}
+            <Text style={s.profilePhone}>{user?.phone || ''}</Text>
+          </View>
+
+          <View style={s.profileSection}>
+            {[
+              { icon: 'person-outline', label: 'Edit Profile', onPress: () => navigation.navigate('Profile') },
+              { icon: 'document-text-outline', label: 'Medical Records', onPress: () => navigation.navigate('MedicalRecords') },
+              { icon: 'notifications-outline', label: 'Reminders', onPress: () => navigation.navigate('Reminders') },
+            ].map((item, i, arr) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[s.profileRow, i < arr.length - 1 && s.profileRowBorder]}
+                onPress={item.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={s.profileRowIcon}>
+                  <Ionicons name={item.icon} size={18} color={C.teal} />
+                </View>
+                <Text style={s.profileRowLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={16} color={C.muted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={s.signOut} onPress={signOut}>
+            <Text style={s.signOutText}>Sign out</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ── BOTTOM TAB BAR ── */}
+      <View style={s.tabBar}>
+        {PATIENT_TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={s.tabItem}
+              onPress={() => {
+                if (tab.onPress) { tab.onPress(); }
+                else { setActiveTab(tab.id); }
+              }}
+            >
+              <Ionicons
+                name={active ? tab.iconActive : tab.icon}
+                size={22}
+                color={active ? C.teal : C.muted}
+              />
+              <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -348,37 +465,20 @@ const s = StyleSheet.create({
 
   // ── Header ──
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.border,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  avatar: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.teal,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  greeting: { color: C.muted, fontSize: 11 },
+  headerLogoMark: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  miniCrossH: { position: 'absolute', width: 24, height: 6, borderRadius: 3, backgroundColor: C.teal },
+  miniCrossV: { position: 'absolute', width: 6, height: 24, borderRadius: 3, backgroundColor: C.teal },
+  greeting: { color: C.muted, fontSize: 12 },
   name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 1 },
-  langBadge: {
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, marginRight: 8,
-  },
-  langText: { color: C.text, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  bellBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  bellBtn: { padding: 4 },
 
   // ── Status card (body) ──
   statusCard: {
@@ -567,4 +667,71 @@ const s = StyleSheet.create({
   chevron: { color: C.muted, fontSize: 24, fontWeight: '300', marginLeft: 4 },
   signOut: { alignItems: 'center', paddingVertical: 6, marginTop: 4 },
   signOutText: { color: C.muted, fontSize: 12 },
+
+  // ── Bottom tab bar ──
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.border,
+    paddingBottom: 16,
+    paddingTop: 10,
+  },
+  tabItem: { flex: 1, alignItems: 'center', gap: 3 },
+  tabLabel: { fontSize: 10, color: C.muted, fontWeight: '500' },
+  tabLabelActive: { color: C.teal, fontWeight: '700' },
+
+  // ── Profile tab ──
+  profileCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 24,
+    alignItems: 'center', marginBottom: 16,
+  },
+  profileAvatar: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 12,
+  },
+  profileAvatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  profileName: { fontSize: 20, fontWeight: '700', color: C.text, marginBottom: 6 },
+  profileCodeBadge: {
+    backgroundColor: C.tealPale, paddingHorizontal: 12, paddingVertical: 4,
+    borderRadius: 99, marginBottom: 6,
+  },
+  profileCodeText: { fontSize: 12, color: C.teal, fontWeight: '700', letterSpacing: 0.5 },
+  profilePhone: { fontSize: 13, color: C.muted },
+  profileSection: {
+    backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 16,
+  },
+  profileRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
+  },
+  profileRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
+  profileRowIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: C.tealPale, alignItems: 'center', justifyContent: 'center',
+  },
+  profileRowLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
+
+  // ── Check In tab ──
+  checkinHeader: { alignItems: 'center', marginBottom: 20 },
+  checkinTitle: { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 4 },
+  checkinSubtitle: { fontSize: 14, color: C.muted },
+  checkinCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#EDF7F2', borderRadius: 18, padding: 18,
+    marginBottom: 16, overflow: 'hidden',
+  },
+  checkinFace: { fontSize: 44, lineHeight: 50 },
+  checkinCardLabel: { fontSize: 11, color: C.muted, marginBottom: 3 },
+  checkinCardTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 3 },
+  checkinCardHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
+  checkinStartBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.teal, borderRadius: 16, paddingVertical: 16, gap: 10,
+    marginBottom: 16,
+    shadowColor: C.teal, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  },
+  checkinStartText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

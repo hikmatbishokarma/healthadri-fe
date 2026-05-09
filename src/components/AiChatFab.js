@@ -3,12 +3,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BOT_ICON = require('../../assets/bot-icon.png');
 
-export default function AiChatFab({ onPress }) {
+export default function AiChatFab({ onPress, extraBottom = 0 }) {
   const insets = useSafeAreaInsets();
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.wrap, { bottom: 16 + (insets.bottom || 0) }]}
+      style={[styles.wrap, { bottom: 16 + (insets.bottom || 0) + extraBottom }]}
     >
       <TouchableOpacity
         onPress={onPress}

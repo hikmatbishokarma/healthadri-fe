@@ -29,13 +29,11 @@ api.interceptors.request.use(async (config) => {
 
 export const sendOtp = (phone) => api.post('/auth/send-otp', { phone });
 
-export const verifyOtp = (phone, otp, role, inviteCode) =>
-  api.post('/auth/verify-otp', {
-    phone,
-    otp,
-    ...(role && { role }),
-    ...(inviteCode && { inviteCode }),
-  });
+export const verifyOtp = (phone, otp, role) =>
+  api.post('/auth/verify-otp', { phone, otp, ...(role && { role }) });
+
+export const caregiverLink = (tempToken, inviteCode) =>
+  api.post('/auth/caregiver/link', { tempToken, inviteCode });
 
 export const generateInvite = () => api.post('/patients/invite');
 
@@ -62,14 +60,26 @@ export const getLatestTriage = (patientId) =>
 export const getNavigatorDashboard = (navigatorId) =>
   api.get(`/navigator/dashboard/${navigatorId}`);
 
+export const getNavigatorPatients = (navigatorId) =>
+  api.get(`/navigator/patients/${navigatorId}`);
+
 export const getNavigatorPlaybookRun = (patientId) =>
   api.get(`/navigator/playbook-run/${patientId}`);
 
-export const getMessages = (userId, withUserId) =>
-  api.get(`/messages/${userId}`, { params: { with: withUserId } });
+export const getThread = (patientId, since = null, callerRole = 'patient') =>
+  api.get(`/messages/thread/${patientId}`, { params: { ...(since ? { since } : {}), callerRole } });
 
-export const sendMessage = (senderId, receiverId, text) =>
-  api.post('/messages', { senderId, receiverId, text });
+export const sendChatMessage = (patientId, senderId, senderType, body, scope = 'both') =>
+  api.post('/messages/send', { patientId, senderId, senderType, body, ...(senderType === 'navigator' ? { scope } : {}) });
+
+export const getInbox = (navigatorId) =>
+  api.get(`/messages/inbox/${navigatorId}`);
+
+export const markRead = (conversationId) =>
+  api.post(`/messages/read/${conversationId}`);
+
+export const navigatorHeartbeat = (navigatorId) =>
+  api.post('/messages/heartbeat', { navigatorId });
 
 export const getHospitals = () => api.get('/hospitals');
 

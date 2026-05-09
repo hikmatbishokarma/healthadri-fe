@@ -11,12 +11,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { getCaregiverPatient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  headerBg: '#0D4035',
   bg: '#F4F6F8',
   card: '#FFFFFF',
   text: '#111827',
@@ -155,37 +155,23 @@ function mapToUIState(raw) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Header({ patient, onBack, onBell }) {
-  const initials = patient?.name?.split(' ').map(w => w[0]).slice(0, 2).join('') ?? 'P';
-  const subtitle = [
-    patient?.cancerType ? `${patient.cancerType} Cancer` : null,
-    patient?.cancerStage,
-  ].filter(Boolean).join(' · ');
-
+function Header({ patient, onBell }) {
   return (
     <View style={s.header}>
-      <TouchableOpacity style={s.headerBack} onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={s.headerBackArrow}>←</Text>
-      </TouchableOpacity>
-      <View style={s.headerAvatar}>
-        <Text style={s.headerAvatarText}>{initials}</Text>
+      <View style={s.headerLogoMark}>
+        <View style={s.miniCrossH} />
+        <View style={s.miniCrossV} />
       </View>
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={s.headerLabel}>You are supporting</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={s.headerName}>{patient?.name ?? '—'}</Text>
-          <View style={s.verifiedBadge}>
-            <Text style={s.verifiedText}>✓</Text>
-          </View>
-        </View>
-        {subtitle ? <Text style={s.headerSub}>{subtitle}</Text> : null}
+        <Text style={s.headerName}>{patient?.name ?? '—'}</Text>
       </View>
       <TouchableOpacity
-        style={s.headerBell}
         onPress={onBell}
+        style={s.bellBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={{ fontSize: 18 }}>🔔</Text>
+        <Ionicons name="notifications-outline" size={22} color="#1A3C34" />
       </TouchableOpacity>
     </View>
   );
@@ -392,6 +378,7 @@ export default function CaregiverDashboardScreen({ navigation }) {
   const [raw, setRaw] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('Home');
 
   const load = useCallback(async () => {
     try {
@@ -430,42 +417,124 @@ export default function CaregiverDashboardScreen({ navigation }) {
     }
   };
 
+  const CG_TABS = [
+    { id: 'Home',     icon: 'home-outline',      iconActive: 'home',      label: 'Home' },
+    { id: 'Schedule', icon: 'calendar-outline',  iconActive: 'calendar',  label: 'Schedule' },
+    { id: 'Messages', icon: 'chatbubble-outline', iconActive: 'chatbubble', label: 'Messages',
+      onPress: () => handleContact() },
+    { id: 'Profile',  icon: 'person-outline',    iconActive: 'person',    label: 'Profile' },
+  ];
+
+  const cgInitials = user?.name?.split(' ').map(w => w[0]).slice(0, 2).join('') ?? 'C';
+
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.headerBg} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <Header
         patient={ui?.patient}
-        onBack={() => navigation.canGoBack() ? navigation.goBack() : signOut()}
         onBell={() => Alert.alert('Notifications', 'No new notifications')}
       />
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
-      >
-        {ui ? (
-          <>
-            <AlertCard ui={ui} onContact={handleContact} />
-            <OverviewCard ui={ui} />
-            <ThingsToNote ui={ui} />
-            <PatientMoodCheck />
-            <HelpfulForCaregivers patient={ui.patient} />
-            <TouchableOpacity style={s.signOut} onPress={signOut}>
-              <Text style={s.signOutText}>Sign out</Text>
+
+      {/* ── HOME TAB ── */}
+      {activeTab === 'Home' && (
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
+        >
+          {ui ? (
+            <>
+              <AlertCard ui={ui} onContact={handleContact} />
+              <OverviewCard ui={ui} />
+              <ThingsToNote ui={ui} />
+              <PatientMoodCheck />
+              <HelpfulForCaregivers patient={ui.patient} />
+            </>
+          ) : (
+            <Text style={s.errorText}>Could not load patient data. Pull down to retry.</Text>
+          )}
+        </ScrollView>
+      )}
+
+      {/* ── SCHEDULE TAB ── */}
+      {activeTab === 'Schedule' && (
+        <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+          <Text style={s.tabSectionTitle}>Upcoming Appointments</Text>
+          {(ui?.events ?? []).length === 0 ? (
+            <View style={s.emptyBox}>
+              <Ionicons name="calendar-outline" size={36} color={C.muted} />
+              <Text style={s.emptyBoxText}>No upcoming appointments</Text>
+            </View>
+          ) : (
+            (ui?.events ?? []).map((ev) => (
+              <View key={ev.id} style={s.scheduleCard}>
+                <View style={s.scheduleDate}>
+                  <Text style={s.scheduleDateDay}>
+                    {new Date(ev.rawDate).getDate().toString().padStart(2, '0')}
+                  </Text>
+                  <Text style={s.scheduleDateMon}>
+                    {new Date(ev.rawDate).toLocaleString('en', { month: 'short' }).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.scheduleLabel}>{ev.label}</Text>
+                  <Text style={s.scheduleType}>{ev.type}</Text>
+                </View>
+                <Text style={s.scheduleRelative}>{relativeDate(ev.rawDate)}</Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* ── PROFILE TAB ── */}
+      {activeTab === 'Profile' && (
+        <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+          <View style={s.cgProfileCard}>
+            <View style={s.cgProfileAvatar}>
+              <Text style={s.cgProfileAvatarText}>{cgInitials}</Text>
+            </View>
+            <Text style={s.cgProfileName}>{user?.name || 'Caregiver'}</Text>
+            <Text style={s.cgProfileSub}>Supporting {ui?.patient?.name || 'your patient'}</Text>
+          </View>
+          <TouchableOpacity style={s.signOut} onPress={signOut}>
+            <Ionicons name="log-out-outline" size={16} color={C.muted} />
+            <Text style={[s.signOutText, { marginLeft: 6 }]}>Sign out</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
+      {/* ── BOTTOM TAB BAR ── */}
+      <View style={s.tabBar}>
+        {CG_TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={s.tabItem}
+              onPress={() => {
+                if (tab.onPress) { tab.onPress(); }
+                else { setActiveTab(tab.id); }
+              }}
+            >
+              <Ionicons
+                name={active ? tab.iconActive : tab.icon}
+                size={22}
+                color={active ? C.teal : C.muted}
+              />
+              <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
-          </>
-        ) : (
-          <Text style={s.errorText}>Could not load patient data. Pull down to retry.</Text>
-        )}
-      </ScrollView>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.headerBg },
+  safe:    { flex: 1, backgroundColor: '#FFFFFF' },
   center:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
   scroll:  { flex: 1, backgroundColor: C.bg },
   content: { padding: 14, paddingBottom: 56, gap: 14 },
@@ -473,41 +542,20 @@ const s = StyleSheet.create({
 
   // ── Header ──
   header: {
-    backgroundColor: C.headerBg,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.border,
   },
-  headerBack: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-    marginRight: 10,
-  },
-  headerBackArrow: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: -1 },
-  headerAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.teal,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerAvatarText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  headerLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, marginBottom: 1 },
-  headerName:  { color: '#fff', fontSize: 17, fontWeight: '700', lineHeight: 22 },
-  verifiedBadge: {
-    backgroundColor: C.teal,
-    borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1,
-  },
-  verifiedText: { color: '#fff', fontSize: 9, fontWeight: '800' },
-  headerSub: { color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 2 },
-  headerBell: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-    marginLeft: 8,
-  },
+  headerLogoMark: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  miniCrossH: { position: 'absolute', width: 24, height: 6, borderRadius: 3, backgroundColor: C.teal },
+  miniCrossV: { position: 'absolute', width: 6, height: 24, borderRadius: 3, backgroundColor: C.teal },
+  headerLabel: { color: C.muted, fontSize: 11 },
+  headerName:  { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 1 },
+  bellBtn: { padding: 4 },
 
   // ── Alert card ──
   alertCard: {
@@ -639,6 +687,52 @@ const s = StyleSheet.create({
   helpSub:   { fontSize: 11, color: C.muted, lineHeight: 15 },
 
   // ── Sign out ──
-  signOut: { alignItems: 'center', paddingVertical: 8 },
+  signOut: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
   signOutText: { color: C.muted, fontSize: 12 },
+
+  // ── Bottom tab bar ──
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.border,
+    paddingBottom: 16,
+    paddingTop: 10,
+  },
+  tabItem: { flex: 1, alignItems: 'center', gap: 3 },
+  tabLabel: { fontSize: 10, color: C.muted, fontWeight: '500' },
+  tabLabelActive: { color: C.teal, fontWeight: '700' },
+
+  // ── Schedule tab ──
+  tabSectionTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 12 },
+  emptyBox: { alignItems: 'center', padding: 32, gap: 10 },
+  emptyBoxText: { fontSize: 14, color: C.muted },
+  scheduleCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+    elevation: 1,
+  },
+  scheduleDate: {
+    backgroundColor: C.tealPale, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', minWidth: 44,
+  },
+  scheduleDateDay: { fontSize: 18, fontWeight: '700', color: C.teal },
+  scheduleDateMon: { fontSize: 9, fontWeight: '700', color: C.teal, letterSpacing: 0.5 },
+  scheduleLabel: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 2 },
+  scheduleType: { fontSize: 11, color: C.muted, textTransform: 'capitalize' },
+  scheduleRelative: { fontSize: 11, fontWeight: '600', color: C.teal },
+
+  // ── Profile tab ──
+  cgProfileCard: {
+    backgroundColor: C.card, borderRadius: 16, padding: 24,
+    alignItems: 'center', marginBottom: 16,
+  },
+  cgProfileAvatar: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  cgProfileAvatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  cgProfileName: { fontSize: 20, fontWeight: '700', color: C.text, marginBottom: 4 },
+  cgProfileSub: { fontSize: 13, color: C.muted },
 });

@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  ScrollView,
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,27 +16,64 @@ import { Ionicons } from '@expo/vector-icons';
 import { getThread, sendChatMessage, markRead, navigatorHeartbeat } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const POLL_INTERVAL   = 4000;
+const POLL_INTERVAL      = 4000;
 const HEARTBEAT_INTERVAL = 30000;
 
-const QUICK_REPLIES = [
-  "Acknowledged, I'll review your case.",
-  'This is not an emergency. Continue monitoring.',
-  'Please call the helpline: 108',
-  "I'll follow up with you tomorrow.",
-];
-
-function getBubbleStyle(senderType) {
-  if (senderType === 'navigator') return { bg: '#1C3D2E', text: '#fff',    align: 'flex-end',   radius: { borderBottomRightRadius: 3 } };
-  if (senderType === 'bot')       return { bg: '#EDF4FF', text: '#0C447C', align: 'flex-start', radius: { borderBottomLeftRadius: 3 } };
-  if (senderType === 'caregiver') return { bg: '#EEEDFE', text: '#3C3489', align: 'flex-start', radius: { borderBottomLeftRadius: 3 } };
-  return { bg: '#fff', text: '#2C2822', align: 'flex-start', radius: { borderBottomLeftRadius: 3 } };
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d    = new Date(dateStr);
+  const h    = d.getHours();
+  const m    = d.getMinutes().toString().padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${m} ${ampm}`;
 }
 
-function SenderTag({ senderType }) {
-  if (senderType === 'bot')       return <Text style={s.senderTag}>Assistant</Text>;
-  if (senderType === 'caregiver') return <Text style={[s.senderTag, { color: '#3C3489' }]}>Caregiver</Text>;
-  if (senderType === 'patient')   return <Text style={s.senderTag}>Patient</Text>;
+// Context-sensitive chips — different set per recipient type
+const CHIPS = {
+  patient:   ["Hi, I'll check on you", 'Rest and stay hydrated', 'Call 108 if worsening'],
+  caregiver: ['Noted, thank you', 'Monitor every 2 hrs', 'Visit clinic if above 39°C'],
+};
+
+// Colors driven entirely by who the navigator is replying to
+const TOKEN = {
+  patient: {
+    replyStripBg:     '#E8F4EE',
+    replyStripBorder: '#9FE1CB',
+    replyStripText:   '#085041',
+    chipBg:           '#E8F4EE',
+    chipBorder:       '#9FE1CB',
+    chipText:         '#085041',
+    bubbleHighlight:  '#1C3D2E',
+    replyingToColor:  '#1C3D2E',
+  },
+  caregiver: {
+    replyStripBg:     '#F0EEFF',
+    replyStripBorder: '#CECBF6',
+    replyStripText:   '#3C3489',
+    chipBg:           '#F0EEFF',
+    chipBorder:       '#CECBF6',
+    chipText:         '#3C3489',
+    bubbleHighlight:  '#2D2060',
+    replyingToColor:  '#2D2060',
+  },
+};
+
+function getBubbleStyle(senderType) {
+  if (senderType === 'navigator') return { bg: '#1C3D2E', text: '#fff',    align: 'flex-end',   borderRadius: { borderBottomRightRadius: 3 }, border: null };
+  if (senderType === 'bot')       return { bg: '#EDF4FF', text: '#0C447C', align: 'flex-start', borderRadius: { borderBottomLeftRadius: 3 },  border: '#C5D9F5' };
+  if (senderType === 'caregiver') return { bg: '#F3F1FE', text: '#3C3489', align: 'flex-start', borderRadius: { borderBottomLeftRadius: 3 },  border: '#CECBF6' };
+  // patient
+  return { bg: '#fff', text: '#2C2822', align: 'flex-start', borderRadius: { borderBottomLeftRadius: 3 }, border: '#E8E5E0' };
+}
+
+function SenderTag({ senderType, senderName, createdAt }) {
+  const parts = [senderName, formatTime(createdAt)].filter(Boolean).join(' · ');
+  if (senderType === 'bot')
+    return <Text style={s.senderTag}>{'Assistant' + (createdAt ? ' · ' + formatTime(createdAt) : '')}</Text>;
+  if (senderType === 'caregiver')
+    return <Text style={[s.senderTag, { color: '#3C3489' }]}>{'Caregiver' + (parts ? ' · ' + parts : '')}</Text>;
+  if (senderType === 'patient')
+    return <Text style={s.senderTag}>{'Patient' + (parts ? ' · ' + parts : '')}</Text>;
   return null;
 }
 
@@ -71,10 +107,12 @@ function PatientContextCard({ patient }) {
           {cycle ? <Text style={s.ctxVal}>{cycle}</Text> : null}
         </View>
       ) : null}
-      {patient.caregiverRelationship ? (
+      {(patient.caregiverName || patient.caregiverRelationship) ? (
         <View style={s.ctxRow}>
           <Text style={s.ctxKey}>Caregiver</Text>
-          <Text style={s.ctxVal}>{patient.caregiverRelationship}</Text>
+          <Text style={s.ctxVal}>
+            {[patient.caregiverName, patient.caregiverRelationship].filter(Boolean).join(' · ')}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -82,84 +120,98 @@ function PatientContextCard({ patient }) {
 }
 
 export default function NavigatorChatScreen({ route, navigation }) {
-  const { user }       = useAuth();
-  const patientId      = route.params?.patientId;
-  const patientName    = route.params?.patientName ?? 'Patient';
+  const { user }    = useAuth();
+  const patientId   = route.params?.patientId;
+  const patientName = route.params?.patientName ?? 'Patient';
 
-  const [messages, setMessages]   = useState([]);
-  const [patient, setPatient]     = useState(null);
-  const [convId, setConvId]       = useState(null);
+  const [messages, setMessages]     = useState([]);
+  const [patient, setPatient]       = useState(null);
+  const [convId, setConvId]         = useState(null);
   const [convStatus, setConvStatus] = useState('pending');
-  const [text, setText]           = useState('');
-  const [loading, setLoading]     = useState(true);
-  const [sending, setSending]     = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [scope, setScope]               = useState('both'); // 'both' | 'patient' | 'caregiver'
+  const [text, setText]             = useState('');
+  const [loading, setLoading]       = useState(true);
+  const [sending, setSending]       = useState(false);
+
+  // replyTo: which message the navigator is currently targeting
+  // { _id, senderType: 'patient'|'caregiver', senderName, body }
+  const [replyTo, setReplyTo] = useState(null);
 
   const listRef            = useRef(null);
   const latestTimestampRef = useRef(null);
   const pollRef            = useRef(null);
   const heartbeatRef       = useRef(null);
 
+  // Snap replyTo to the given message (called on load + on bubble tap)
+  const snapReplyTo = useCallback((msg, resolvedPatient) => {
+    if (!msg) return;
+    const name = msg.senderType === 'patient'
+      ? (resolvedPatient?.name ?? patientName)
+      : (msg.senderId?.name ?? 'Caregiver');
+    setReplyTo({ _id: msg._id, senderType: msg.senderType, senderName: name, body: msg.body });
+  }, [patientName]);
+
   const fetchThread = useCallback(async (since = null) => {
     if (!patientId) return;
     try {
       const res  = await getThread(patientId, since, 'navigator');
       const data = res.data;
+      const resolvedPatient = data.patient ?? null;
+
       if (!since) {
         setConvId(data.conversation?._id ?? null);
         setConvStatus(data.conversation?.status ?? 'pending');
-        setPatient(data.patient ?? null);
+        setPatient(resolvedPatient);
       }
+
       const incoming = Array.isArray(data.messages) ? data.messages : [];
       if (incoming.length > 0) {
         latestTimestampRef.current = incoming[incoming.length - 1].createdAt;
-        setMessages((prev) => {
-          const next = since ? [...prev, ...incoming] : incoming;
-          // Auto-snap scope to last non-bot, non-system sender
-          const lastReal = [...next].reverse().find(
+        setMessages((prev) => (since ? [...prev, ...incoming] : incoming));
+
+        // Auto-snap only on initial load — tap overrides it after that
+        if (!since) {
+          const lastReal = [...incoming].reverse().find(
             (m) => m.senderType === 'patient' || m.senderType === 'caregiver',
           );
-          if (lastReal) {
-            setScope(lastReal.senderType === 'caregiver' ? 'both' : 'patient');
-          }
-          return next;
-        });
+          snapReplyTo(lastReal ?? null, resolvedPatient);
+        }
       } else if (!since) {
         setMessages([]);
+        // No messages yet — default to patient
+        setReplyTo({
+          _id: null,
+          senderType: 'patient',
+          senderName: resolvedPatient?.name ?? patientName,
+          body: null,
+        });
       }
     } catch {
       // silent on poll failures
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, [patientId, patientName, snapReplyTo]);
 
   useEffect(() => {
     if (!patientId || !user?._id) return;
-
     fetchThread(null);
-    pollRef.current = setInterval(() => fetchThread(latestTimestampRef.current), POLL_INTERVAL);
-
-    // Heartbeat to mark navigator as online
+    pollRef.current      = setInterval(() => fetchThread(latestTimestampRef.current), POLL_INTERVAL);
     navigatorHeartbeat(user._id).catch(() => {});
     heartbeatRef.current = setInterval(() => navigatorHeartbeat(user._id).catch(() => {}), HEARTBEAT_INTERVAL);
-
     return () => {
       clearInterval(pollRef.current);
       clearInterval(heartbeatRef.current);
     };
   }, [fetchThread, patientId, user]);
 
-  // Mark messages as read when conversation ID is known
   useEffect(() => {
     if (convId) markRead(convId).catch(() => {});
   }, [convId]);
 
   const handleSend = async (body = text.trim()) => {
     if (!body || !patientId || !user?._id || sending) return;
+    const scope = replyTo?.senderType === 'caregiver' ? 'caregiver' : 'patient';
     setText('');
-    setShowTemplates(false);
     setSending(true);
     try {
       const res = await sendChatMessage(patientId, user._id, 'navigator', body, scope);
@@ -178,18 +230,15 @@ export default function NavigatorChatScreen({ route, navigation }) {
     }
   };
 
-  const statusColor = {
-    active: '#6FCFA0',
-    bot_held: '#F5A623',
-    escalated: '#DC2626',
-    pending: '#CBD5E1',
-  }[convStatus] ?? '#CBD5E1';
+  const tok   = TOKEN[replyTo?.senderType ?? 'patient'];
+  const chips = CHIPS[replyTo?.senderType ?? 'patient'];
+  const statusColor = { active: '#6FCFA0', bot_held: '#F5A623', escalated: '#DC2626', pending: '#CBD5E1' }[convStatus] ?? '#CBD5E1';
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#1C3D2E" />
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={s.hdr}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -206,10 +255,10 @@ export default function NavigatorChatScreen({ route, navigation }) {
         <View style={[s.statusDot, { backgroundColor: statusColor }]} />
       </View>
 
-      {/* Linked bar — always shown so navigator knows which patient this thread belongs to */}
+      {/* ── Linked bar ── */}
       <LinkedBar patientName={patient?.name ?? patientName} />
 
-      {/* Escalated banner */}
+      {/* ── Escalated banner ── */}
       {convStatus === 'escalated' && (
         <View style={s.escalatedBar}>
           <Ionicons name="warning" size={13} color="#A32D2D" />
@@ -217,13 +266,10 @@ export default function NavigatorChatScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Patient context card */}
+      {/* ── Patient context card ── */}
       <PatientContextCard patient={patient} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading ? (
           <View style={s.center}>
             <ActivityIndicator color="#1C3D2E" />
@@ -248,7 +294,7 @@ export default function NavigatorChatScreen({ route, navigation }) {
                   </View>
                 );
               }
-              // Blocker placeholder (shouldn't normally appear for navigator, but defensive)
+              // Blocker placeholder (defensive — navigators normally see all)
               if (item.senderType === 'placeholder') {
                 return (
                   <View style={s.placeholderRow}>
@@ -257,76 +303,133 @@ export default function NavigatorChatScreen({ route, navigation }) {
                   </View>
                 );
               }
-              const style = getBubbleStyle(item.senderType);
-              const isNav = item.senderType === 'navigator';
+
+              const bs         = getBubbleStyle(item.senderType);
+              const isNav      = item.senderType === 'navigator';
+              const isTappable = item.senderType === 'patient' || item.senderType === 'caregiver';
+              const isSelected = replyTo?._id === item._id;
+              const hlColor    = isTappable ? TOKEN[item.senderType]?.bubbleHighlight : null;
+              const BubbleWrapper = isTappable ? TouchableOpacity : View;
+
+              // Derive recipient from visibleTo — shown below each navigator bubble
+              let recipientLabel = null;
+              let recipientColor = '#9A9186';
+              if (isNav) {
+                const vt        = item.visibleTo ?? [];
+                const toPatient = vt.includes('patient');
+                const toCg      = vt.includes('caregiver');
+                if (toPatient && !toCg) {
+                  recipientLabel = patient?.name ?? 'Patient';
+                  recipientColor = '#3D7A5C';
+                } else if (toCg && !toPatient) {
+                  recipientLabel = patient?.caregiverName ?? 'Caregiver';
+                  recipientColor = '#534AB7';
+                } else if (toPatient && toCg) {
+                  recipientLabel = `${patient?.name ?? 'Patient'} & ${patient?.caregiverName ?? 'Caregiver'}`;
+                }
+              }
+
               return (
-                <View style={{ alignSelf: style.align, maxWidth: '82%', marginBottom: 6 }}>
-                  {!isNav && <SenderTag senderType={item.senderType} />}
-                  <View style={[s.bubble, { backgroundColor: style.bg, alignSelf: style.align }, style.radius,
-                    item.senderType !== 'navigator' && s.bubbleBorder]}>
-                    <Text style={[s.bubbleText, { color: style.text }]}>{item.body}</Text>
-                  </View>
+                <View style={{ alignSelf: bs.align, maxWidth: '82%', marginBottom: 6 }}>
+                  {!isNav && (
+                    <SenderTag
+                      senderType={item.senderType}
+                      senderName={item.senderId?.name ?? null}
+                      createdAt={item.createdAt}
+                    />
+                  )}
+                  <BubbleWrapper
+                    activeOpacity={0.75}
+                    onPress={isTappable ? () => snapReplyTo(item, patient) : undefined}
+                  >
+                    <View style={[
+                      s.bubble,
+                      { backgroundColor: bs.bg, alignSelf: bs.align },
+                      bs.borderRadius,
+                      bs.border && { borderWidth: 0.5, borderColor: bs.border },
+                      isSelected && { borderWidth: 1.5, borderColor: hlColor },
+                    ]}>
+                      {item.senderType === 'bot' && (
+                        <View style={s.botRow}>
+                          <Ionicons name="sparkles-outline" size={11} color="#0C447C" />
+                          <Text style={s.botLabel}>Assistant</Text>
+                        </View>
+                      )}
+                      <Text style={[s.bubbleText, { color: bs.text }]}>{item.body}</Text>
+                    </View>
+                    {/* "replying to this" tag on selected incoming bubble */}
+                    {isSelected && (
+                      <View style={s.replyingTag}>
+                        <Ionicons name="return-down-forward-outline" size={10} color={hlColor} />
+                        <Text style={[s.replyingTagText, { color: hlColor }]}>replying to this</Text>
+                      </View>
+                    )}
+                  </BubbleWrapper>
+                  {/* Recipient citation — who this navigator message was sent to */}
+                  {recipientLabel ? (
+                    <View style={s.recipientRow}>
+                      <Ionicons name="person-outline" size={9} color={recipientColor} />
+                      <Text style={[s.recipientLabel, { color: recipientColor }]}>{recipientLabel}</Text>
+                    </View>
+                  ) : null}
                 </View>
               );
             }}
           />
         )}
 
-        {/* Quick reply templates */}
-        {showTemplates && (
-          <View style={s.templates}>
-            <Text style={s.templatesLabel}>Quick replies</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.templatesRow}>
-              {QUICK_REPLIES.map((reply) => (
-                <TouchableOpacity key={reply} style={s.templateBtn} onPress={() => handleSend(reply)}>
-                  <Text style={s.templateText}>{reply}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+        {/* ── Input area ── */}
+        <View style={s.inputArea}>
+
+          {/* Reply strip — "Replying to [Name] · [preview]" */}
+          <View style={[s.replyStrip, { backgroundColor: tok.replyStripBg, borderBottomColor: tok.replyStripBorder }]}>
+            <Ionicons name="arrow-undo-outline" size={13} color={tok.replyStripText} style={{ flexShrink: 0, marginTop: 1 }} />
+            <Text style={[s.replyStripText, { color: tok.replyStripText }]} numberOfLines={1}>
+              Replying to <Text style={{ fontWeight: '700' }}>{replyTo?.senderName ?? 'Patient'}</Text>
+              {replyTo?.body ? <Text style={{ fontWeight: '400' }}> · "{replyTo.body}"</Text> : null}
+            </Text>
           </View>
-        )}
 
-        {/* Scope selector — who receives this reply */}
-        <View style={s.scopeBar}>
-          <Text style={s.scopeLabel}>Reply to:</Text>
-          {[
-            { key: 'both',      label: 'Both' },
-            { key: 'patient',   label: 'Patient only' },
-            { key: 'caregiver', label: 'Caregiver only' },
-          ].map(({ key, label }) => (
+          {/* Scope strip — "[Name] receives this reply" */}
+          <View style={[s.scopeStrip, { borderBottomColor: '#E8E5E0' }]}>
+            <Ionicons name="person-outline" size={13} color={tok.replyStripText} />
+            <Text style={[s.scopeStripText, { color: tok.replyStripText }]}>
+              {replyTo?.senderName ?? 'Patient'} receives this reply
+            </Text>
+          </View>
+
+          {/* Context-sensitive quick chips */}
+          <View style={s.chipsRow}>
+            {chips.map((chip) => (
+              <TouchableOpacity
+                key={chip}
+                style={[s.chip, { backgroundColor: tok.chipBg, borderColor: tok.chipBorder }]}
+                onPress={() => handleSend(chip)}
+              >
+                <Text style={[s.chipText, { color: tok.chipText }]}>{chip}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Text input row */}
+          <View style={s.inputRow}>
+            <TextInput
+              style={s.input}
+              placeholder={`Reply to ${replyTo?.senderName ?? 'Patient'}…`}
+              placeholderTextColor="#9A9186"
+              value={text}
+              onChangeText={setText}
+              multiline
+            />
             <TouchableOpacity
-              key={key}
-              style={[s.scopeChip, scope === key && s.scopeChipActive]}
-              onPress={() => setScope(key)}
+              style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
+              onPress={() => handleSend()}
+              disabled={!text.trim() || sending}
             >
-              <Text style={[s.scopeChipText, scope === key && s.scopeChipTextActive]}>{label}</Text>
+              <Ionicons name="send" size={15} color="#fff" />
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
 
-        {/* Input bar */}
-        <View style={s.inputBar}>
-          <TouchableOpacity
-            style={[s.iconBtn, showTemplates && s.iconBtnActive]}
-            onPress={() => setShowTemplates((v) => !v)}
-          >
-            <Ionicons name="list-outline" size={18} color={showTemplates ? '#1C3D2E' : '#9A9186'} />
-          </TouchableOpacity>
-          <TextInput
-            style={s.input}
-            placeholder={`Reply to ${patientName}…`}
-            placeholderTextColor="#9A9186"
-            value={text}
-            onChangeText={setText}
-            multiline
-          />
-          <TouchableOpacity
-            style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]}
-            onPress={() => handleSend()}
-            disabled={!text.trim() || sending}
-          >
-            <Ionicons name="send" size={16} color="#fff" />
-          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -337,6 +440,7 @@ const s = StyleSheet.create({
   root:   { flex: 1, backgroundColor: '#F7F5F2' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
+  // Header
   hdr: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#1C3D2E', paddingHorizontal: 14, paddingVertical: 12,
@@ -351,7 +455,7 @@ const s = StyleSheet.create({
   hdrSub:        { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
   statusDot:     { width: 8, height: 8, borderRadius: 4 },
 
-  // Dark green linked bar (Screen E design)
+  // Linked bar
   linkedBar: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#1C3D2E', paddingHorizontal: 12, paddingVertical: 5,
@@ -359,6 +463,7 @@ const s = StyleSheet.create({
   linkedBarMuted: { fontSize: 10, color: 'rgba(255,255,255,0.55)' },
   linkedBarName:  { fontSize: 10, fontWeight: '600', color: '#6FCFA0' },
 
+  // Escalated banner
   escalatedBar: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#FCEBEB', paddingHorizontal: 14, paddingVertical: 7,
@@ -366,7 +471,7 @@ const s = StyleSheet.create({
   },
   escalatedText: { fontSize: 11, color: '#A32D2D', fontWeight: '600' },
 
-  // Context card — floating card with margin + border-radius (matches .ctx-card CSS)
+  // Patient context card
   ctxCard: {
     backgroundColor: '#F0FDF7',
     borderWidth: 0.5, borderColor: '#9FE1CB',
@@ -377,65 +482,29 @@ const s = StyleSheet.create({
   ctxKey:   { fontSize: 11, color: '#6B7280' },
   ctxVal:   { fontSize: 11, color: '#1C3D2E', fontWeight: '500' },
 
-  msgList:    { padding: 12, flexGrow: 1 },
-  senderTag:  { fontSize: 10, color: '#9A9186', marginBottom: 2, paddingLeft: 2 },
-  bubble:     { padding: 10, borderRadius: 12 },
-  bubbleBorder: { borderWidth: 0.5, borderColor: '#E8E5E0' },
-  bubbleText: { fontSize: 13, lineHeight: 19 },
+  // Messages
+  msgList:   { padding: 12, flexGrow: 1 },
+  senderTag: { fontSize: 10, color: '#9A9186', marginBottom: 2, paddingLeft: 2 },
+  bubble:    { padding: 10, borderRadius: 12 },
+  bubbleText:{ fontSize: 13, lineHeight: 19 },
+  botRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  botLabel:  { fontSize: 10, color: '#0C447C', fontWeight: '600' },
 
-  templates: {
-    backgroundColor: '#fff', borderTopWidth: 0.5, borderTopColor: '#E8E5E0',
-    paddingTop: 10, paddingBottom: 6,
+  // "replying to this" tag below a selected bubble
+  replyingTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 3, paddingLeft: 4,
   },
-  templatesLabel: {
-    fontSize: 10, fontWeight: '700', color: '#9A9186',
-    textTransform: 'uppercase', letterSpacing: 0.6,
-    paddingHorizontal: 14, marginBottom: 6,
-  },
-  templatesRow:  { paddingHorizontal: 10, gap: 8 },
-  templateBtn: {
-    backgroundColor: '#F2F0ED', borderRadius: 18,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 0.5, borderColor: '#E0DDD8',
-  },
-  templateText: { fontSize: 12, color: '#2C2822' },
+  replyingTagText: { fontSize: 10, fontWeight: '500' },
 
-  inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    padding: 10, backgroundColor: '#fff',
-    borderTopWidth: 0.5, borderTopColor: '#E8E5E0',
+  // Recipient citation below each navigator bubble — who received that specific message
+  recipientRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    alignSelf: 'flex-end', marginTop: 3, paddingRight: 2,
   },
-  iconBtn: {
-    width: 32, height: 32, borderRadius: 8,
-    backgroundColor: '#F2F0ED', alignItems: 'center', justifyContent: 'center',
-  },
-  iconBtnActive: { backgroundColor: '#E1F5EE' },
-  input: {
-    flex: 1, backgroundColor: '#F2F0ED', borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: 13, color: '#2C2822', maxHeight: 100,
-  },
-  sendBtn:         { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1C3D2E', alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: '#9FD4BE' },
-  emptyText: { color: '#9A9186', fontSize: 13, textAlign: 'center', marginTop: 40 },
+  recipientLabel: { fontSize: 10 },
 
-  // Scope selector bar
-  scopeBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 10, paddingVertical: 6,
-    backgroundColor: '#F7F5F2', borderTopWidth: 0.5, borderTopColor: '#E8E5E0',
-  },
-  scopeLabel:         { fontSize: 10, color: '#9A9186', fontWeight: '600', marginRight: 2 },
-  scopeChip: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, borderWidth: 0.5, borderColor: '#E0DDD8',
-    backgroundColor: '#fff',
-  },
-  scopeChipActive:     { backgroundColor: '#1C3D2E', borderColor: '#1C3D2E' },
-  scopeChipText:       { fontSize: 11, color: '#6B7280' },
-  scopeChipTextActive: { color: '#fff', fontWeight: '600' },
-
-  // Scope confirmation system pill
+  // System confirmation pill (shown in message list after navigator sends)
   sysPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     alignSelf: 'center', backgroundColor: '#EBF7F2',
@@ -454,4 +523,44 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: '#E0DDD8',
   },
   placeholderText: { fontSize: 10, color: '#9A9186', fontStyle: 'italic' },
+
+  // ── Input area (reply strip + scope strip + chips + text row) ──
+  inputArea: { backgroundColor: '#fff', borderTopWidth: 0.5, borderTopColor: '#E8E5E0' },
+
+  replyStrip: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderBottomWidth: 0.5,
+  },
+  replyStripText: { flex: 1, fontSize: 11, lineHeight: 16 },
+
+  scopeStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderBottomWidth: 0.5,
+  },
+  scopeStripText: { fontSize: 11, fontWeight: '500' },
+
+  chipsRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  chip: {
+    borderRadius: 14, borderWidth: 0.5,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  chipText: { fontSize: 11 },
+
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+    paddingHorizontal: 10, paddingBottom: 10, paddingTop: 4,
+  },
+  input: {
+    flex: 1, backgroundColor: '#F2F0ED', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    fontSize: 13, color: '#2C2822', maxHeight: 100,
+  },
+  sendBtn:         { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1C3D2E', alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { backgroundColor: '#9FD4BE' },
+  emptyText:       { color: '#9A9186', fontSize: 13, textAlign: 'center', marginTop: 40 },
 });

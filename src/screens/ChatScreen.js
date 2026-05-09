@@ -209,7 +209,8 @@ export default function ChatScreen({ navigation }) {
                 );
               }
 
-              const isMe  = item.senderId === user?._id;
+              // senderId may be a populated object { _id, name } or a plain string ID
+              const isMe  = (item.senderId?._id?.toString?.() ?? item.senderId) === user?._id;
               const style = getBubbleStyle(item.senderType, isMe, theme);
               const isBot = item.senderType === 'bot';
 

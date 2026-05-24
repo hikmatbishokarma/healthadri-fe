@@ -83,6 +83,12 @@ export const navigatorHeartbeat = (navigatorId) =>
 
 export const getHospitals = () => api.get('/hospitals');
 
+export const searchHospitals = (query) =>
+  api.get(`/hospitals?search=${encodeURIComponent(query)}`);
+
+export const searchDoctors = (query) =>
+  api.get(`/doctors?search=${encodeURIComponent(query)}`);
+
 export const getAppointments = (patientId) =>
   api.get('/appointments', { params: { patientId } });
 

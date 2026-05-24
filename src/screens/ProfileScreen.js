@@ -13,9 +13,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { Share } from 'react-native';
-import { generateInvite, updateProfile } from '../services/api';
+import { generateInvite, searchDoctors, searchHospitals, updateProfile } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ChipSelect from '../components/ChipSelect';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 const C = {
   primary: '#1A6B5A',
@@ -34,10 +35,17 @@ const C = {
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const CANCER_TYPE_OPTIONS = [
-  'Oral', 'Breast', 'Lung', 'Cervical', 'Colorectal',
-  'Prostate', 'Stomach', 'Liver', 'Leukemia', 'Lymphoma', 'Other',
+  'Breast', 'Lung', 'Head & Neck', 'Cervical', 'Blood/Leukemia',
+  'Prostate', 'Colorectal', 'Thyroid', 'Oral', 'Stomach', 'Liver', 'Other',
 ];
-const CANCER_STAGE_OPTIONS = ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Unknown'];
+const CANCER_STAGE_OPTIONS = ['Stage I', 'Stage II', 'Stage III', 'Stage IV', 'Not Sure'];
+const TREATMENT_STATUS_OPTIONS = [
+  { value: 'newly-diagnosed', label: 'Newly Diagnosed' },
+  { value: 'awaiting-surgery', label: 'Awaiting Surgery' },
+  { value: 'chemo-radiation', label: 'Chemo/Radiation' },
+  { value: 'post-treatment', label: 'Post-Treatment' },
+];
+const CAREGIVER_RELATIONSHIP_OPTIONS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Other'];
 
 export default function ProfileScreen({ navigation }) {
   const { user, refresh } = useAuth();
@@ -54,6 +62,32 @@ export default function ProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
+
+  // Onboarding wizard state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    age: user?.age ? String(user.age) : '',
+    gender: user?.gender || '',
+    abhaNumber: '',
+    emergencyContactPhone: '',
+    cancerType: user?.cancerType || '',
+    primarySite: '',
+    cancerStage: user?.cancerStage || '',
+    treatmentStatus: '',
+    dateOfDiagnosis: '',
+    caregiverName: '',
+    caregiverRelationship: '',
+    caregiverPhone: '',
+    hospitalId: null,
+    hospitalName: user?.hospitalName || '',
+    doctorId: null,
+    doctorName: '',
+  });
+  const [consentMedical, setConsentMedical] = useState(false);
+  const [consentCaregiver, setConsentCaregiver] = useState(false);
+
+  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   // Re-sync when user data updates from server
   useEffect(() => {
@@ -75,6 +109,36 @@ export default function ProfileScreen({ navigation }) {
     }
     prevProfileCompleted.current = user?.profileCompleted;
   }, [user?.profileCompleted]);
+
+  const handleWizardSubmit = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({
+        name: form.name.trim(),
+        age: Number(form.age),
+        gender: form.gender,
+        abhaNumber: form.abhaNumber,
+        emergencyContactPhone: form.emergencyContactPhone,
+        cancerType: form.cancerType,
+        primarySite: form.primarySite,
+        cancerStage: form.cancerStage,
+        treatmentStatus: form.treatmentStatus,
+        dateOfDiagnosis: form.dateOfDiagnosis || undefined,
+        caregiverName: form.caregiverName,
+        caregiverRelationship: form.caregiverRelationship,
+        caregiverPhone: form.caregiverPhone,
+        hospitalId: form.hospitalId || undefined,
+        hospitalName: form.hospitalName,
+        doctorName: form.doctorName,
+        doctorId: form.doctorId || undefined,
+      });
+      await refresh();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim() || !age || !gender) {
@@ -130,106 +194,346 @@ export default function ProfileScreen({ navigation }) {
     ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
 
-  // ─── Onboarding view ────────────────────────────────────────────────────────
+  // ─── Onboarding wizard ────────────────────────────────────────────────────────
   if (isOnboarding) {
+    const stepTitles = [
+      'Basic Identity',
+      'Cancer Profile',
+      'Caregiver',
+      'Care Team',
+      'Review & Consent',
+    ];
+
+    const stepValid = () => {
+      if (currentStep === 1) return form.name.trim() && form.age && form.gender;
+      if (currentStep === 2) return !!form.cancerType;
+      return true;
+    };
+
+    const goNext = () => setCurrentStep((s) => Math.min(s + 1, 5));
+    const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
+
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <StatusBar barStyle="light-content" backgroundColor={C.primaryDark} />
+
+        {/* Header */}
+        <View style={styles.wizardHeader}>
+          {currentStep > 1 ? (
+            <TouchableOpacity onPress={goBack} style={styles.wizardBack}>
+              <Text style={styles.wizardBackText}>←</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.wizardStepLabel}>Step {currentStep} of 5</Text>
+            <Text style={styles.wizardStepTitle}>{stepTitles[currentStep - 1]}</Text>
+          </View>
+          <View style={{ width: 36 }} />
+        </View>
+
+        {/* Progress bar */}
+        <View style={styles.progressBar}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <View
+              key={n}
+              style={[styles.progressSegment, currentStep >= n && styles.progressSegmentActive]}
+            />
+          ))}
+        </View>
+
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero */}
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}>
-              <Text style={styles.heroIconText}>👤</Text>
+          {/* Step 1 — Basic Identity */}
+          {currentStep === 1 && (
+            <View style={styles.formCard}>
+              <FormSection title="Basic Information">
+                <FieldLabel label="Full Name" required />
+                <TextInput
+                  style={styles.input}
+                  value={form.name}
+                  onChangeText={(v) => setField('name', v)}
+                  placeholder="e.g. Ravi Kumar"
+                  placeholderTextColor={C.textMuted}
+                  returnKeyType="next"
+                />
+
+                <FieldLabel label="Age" required />
+                <TextInput
+                  style={[styles.input, { width: 120 }]}
+                  value={form.age}
+                  onChangeText={(v) => setField('age', v)}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 45"
+                  placeholderTextColor={C.textMuted}
+                  maxLength={3}
+                />
+
+                <FieldLabel label="Gender" required />
+                <ChipSelect
+                  value={form.gender}
+                  options={GENDER_OPTIONS}
+                  onChange={(v) => setField('gender', v)}
+                />
+
+                <FieldLabel label="ABHA ID (optional)" />
+                <TextInput
+                  style={styles.input}
+                  value={form.abhaNumber}
+                  onChangeText={(v) => setField('abhaNumber', v)}
+                  placeholder="14-digit ABHA number"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="number-pad"
+                  maxLength={14}
+                />
+
+                <FieldLabel label="Emergency Contact Number (optional)" />
+                <TextInput
+                  style={styles.input}
+                  value={form.emergencyContactPhone}
+                  onChangeText={(v) => setField('emergencyContactPhone', v)}
+                  placeholder="+91 98765 43210"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="phone-pad"
+                />
+              </FormSection>
             </View>
-            <Text style={styles.heroTitle}>Tell us about you</Text>
-            <Text style={styles.heroSub}>
-              This helps your care team support you better and respond faster.
-            </Text>
-          </View>
+          )}
 
-          {/* Form card */}
-          <View style={styles.formCard}>
-            <FormSection title="Basic Information">
-              <FieldLabel label="Full Name" required />
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g. Ravi Kumar"
-                placeholderTextColor={C.textMuted}
-                returnKeyType="next"
-              />
+          {/* Step 2 — Cancer Profile */}
+          {currentStep === 2 && (
+            <View style={styles.formCard}>
+              <FormSection title="Cancer Profile">
+                <FieldLabel label="Cancer Type" required />
+                <ChipSelect
+                  value={form.cancerType}
+                  options={CANCER_TYPE_OPTIONS}
+                  onChange={(v) => setField('cancerType', v)}
+                />
 
-              <FieldLabel label="Age" required />
-              <TextInput
-                style={[styles.input, { width: 120 }]}
-                value={age}
-                onChangeText={setAge}
-                keyboardType="number-pad"
-                placeholder="e.g. 45"
-                placeholderTextColor={C.textMuted}
-                maxLength={3}
-              />
+                <FieldLabel label="Primary Site (optional)" />
+                <TextInput
+                  style={styles.input}
+                  value={form.primarySite}
+                  onChangeText={(v) => setField('primarySite', v)}
+                  placeholder="e.g. Right Breast"
+                  placeholderTextColor={C.textMuted}
+                />
 
-              <FieldLabel label="Gender" required />
-              <ChipSelect value={gender} options={GENDER_OPTIONS} onChange={setGender} />
-            </FormSection>
+                <FieldLabel label="Stage (optional)" />
+                <ChipSelect
+                  value={form.cancerStage}
+                  options={CANCER_STAGE_OPTIONS}
+                  onChange={(v) => setField('cancerStage', v)}
+                />
 
-            <Divider />
+                <FieldLabel label="Treatment Status (optional)" />
+                <ChipSelect
+                  value={form.treatmentStatus}
+                  options={TREATMENT_STATUS_OPTIONS}
+                  onChange={(v) => setField('treatmentStatus', v)}
+                />
 
-            <FormSection title="Cancer Details">
-              <FieldLabel label="Cancer Type" />
-              <ChipSelect
-                value={cancerType}
-                options={CANCER_TYPE_OPTIONS}
-                onChange={setCancerType}
-              />
+                <FieldLabel label="Date of Diagnosis (optional)" />
+                <TextInput
+                  style={styles.input}
+                  value={form.dateOfDiagnosis}
+                  onChangeText={(v) => setField('dateOfDiagnosis', v)}
+                  placeholder="DD/MM/YYYY"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                />
+              </FormSection>
+            </View>
+          )}
 
-              <FieldLabel label="Stage" />
-              <ChipSelect
-                value={cancerStage}
-                options={CANCER_STAGE_OPTIONS}
-                onChange={setCancerStage}
-              />
-            </FormSection>
+          {/* Step 3 — Caregiver */}
+          {currentStep === 3 && (
+            <View style={styles.formCard}>
+              <FormSection title="Caregiver Information">
+                <Text style={styles.stepHint}>
+                  Do you have a primary caregiver? You can skip this for now.
+                </Text>
 
-            <Divider />
+                <FieldLabel label="Caregiver Name" />
+                <TextInput
+                  style={styles.input}
+                  value={form.caregiverName}
+                  onChangeText={(v) => setField('caregiverName', v)}
+                  placeholder="e.g. Priya Sharma"
+                  placeholderTextColor={C.textMuted}
+                />
 
-            <FormSection title="Treatment Centre">
-              <FieldLabel label="Hospital Name" />
-              <TextInput
-                style={styles.input}
-                value={hospitalName}
-                onChangeText={setHospitalName}
-                placeholder="e.g. City Cancer Center"
-                placeholderTextColor={C.textMuted}
-              />
-            </FormSection>
-          </View>
+                <FieldLabel label="Relationship" />
+                <ChipSelect
+                  value={form.caregiverRelationship}
+                  options={CAREGIVER_RELATIONSHIP_OPTIONS}
+                  onChange={(v) => setField('caregiverRelationship', v)}
+                />
+
+                <FieldLabel label="Caregiver Phone" />
+                <TextInput
+                  style={styles.input}
+                  value={form.caregiverPhone}
+                  onChangeText={(v) => setField('caregiverPhone', v)}
+                  placeholder="+91 98765 43210"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="phone-pad"
+                />
+
+                <Text style={styles.infoNote}>
+                  You can share app access with your caregiver after setup from your Profile.
+                </Text>
+              </FormSection>
+            </View>
+          )}
+
+          {/* Step 4 — Care Team */}
+          {currentStep === 4 && (
+            <View style={[styles.formCard, { zIndex: 20 }]}>
+              <FormSection title="Care Team">
+                <Text style={styles.stepHint}>
+                  Search for your hospital and doctor. You can skip this and update it later.
+                </Text>
+
+                <FieldLabel label="Primary Hospital" />
+                <SearchableDropdown
+                  placeholder="Search hospitals..."
+                  onSearch={async (q) => {
+                    const res = await searchHospitals(q);
+                    return res.data;
+                  }}
+                  onSelect={(item) => {
+                    setField('hospitalId', item._id);
+                    setField('hospitalName', item.name);
+                  }}
+                />
+
+                <View style={{ marginTop: 20 }}>
+                  <FieldLabel label="Primary Oncologist" />
+                  <SearchableDropdown
+                    placeholder="Search doctors..."
+                    onSearch={async (q) => {
+                      const res = await searchDoctors(q);
+                      return res.data;
+                    }}
+                    onSelect={(item) => {
+                      setField('doctorId', item._id);
+                      setField('doctorName', item.name);
+                    }}
+                  />
+                </View>
+              </FormSection>
+            </View>
+          )}
+
+          {/* Step 5 — Consent */}
+          {currentStep === 5 && (
+            <View style={styles.formCard}>
+              <FormSection title="Summary">
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Name</Text>
+                  <Text style={styles.summaryValue}>{form.name || '—'}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Cancer Type</Text>
+                  <Text style={styles.summaryValue}>{form.cancerType || '—'}</Text>
+                </View>
+                {form.caregiverName ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Caregiver</Text>
+                    <Text style={styles.summaryValue}>{form.caregiverName}</Text>
+                  </View>
+                ) : null}
+                {form.hospitalName ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Hospital</Text>
+                    <Text style={styles.summaryValue}>{form.hospitalName}</Text>
+                  </View>
+                ) : null}
+              </FormSection>
+
+              <Divider />
+
+              <FormSection title="Consent">
+                <TouchableOpacity
+                  style={styles.consentRow}
+                  onPress={() => setConsentMedical((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, consentMedical && styles.checkboxChecked]}>
+                    {consentMedical && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.consentText}>
+                    I consent to sharing my medical records with my assigned care navigator for
+                    better care coordination. <Text style={{ color: C.errorText }}>*</Text>
+                  </Text>
+                </TouchableOpacity>
+
+                {form.caregiverName ? (
+                  <TouchableOpacity
+                    style={[styles.consentRow, { marginTop: 12 }]}
+                    onPress={() => setConsentCaregiver((v) => !v)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, consentCaregiver && styles.checkboxChecked]}>
+                      {consentCaregiver && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.consentText}>
+                      I authorize my caregiver ({form.caregiverName}) to view my health updates.
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </FormSection>
+            </View>
+          )}
         </ScrollView>
 
-        {/* Sticky save button */}
+        {/* Footer */}
         <View style={styles.stickyFooter}>
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color={C.white} />
-            ) : (
-              <>
-                <Text style={styles.saveBtnText}>Save & Continue</Text>
-                <Text style={styles.saveBtnArrow}>→</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {currentStep < 5 ? (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {(currentStep === 3 || currentStep === 4) && (
+                <TouchableOpacity style={styles.skipBtn} onPress={goNext}>
+                  <Text style={styles.skipBtnText}>Skip for now →</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.saveBtn,
+                  { flex: 1 },
+                  !stepValid() && styles.saveBtnDisabled,
+                ]}
+                onPress={goNext}
+                disabled={!stepValid()}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.saveBtnText}>Next →</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.saveBtn, (!consentMedical || saving) && styles.saveBtnDisabled]}
+              onPress={handleWizardSubmit}
+              disabled={!consentMedical || saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color={C.white} />
+              ) : (
+                <>
+                  <Text style={styles.saveBtnText}>Complete Registration</Text>
+                  <Text style={styles.saveBtnArrow}>→</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -458,38 +762,105 @@ function InfoRow({ icon, img, tint, label, value, last }) {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // ── Hero (onboarding) ──
-  hero: {
+  // ── Wizard header ──
+  wizardHeader: {
     backgroundColor: C.primaryDark,
-    paddingTop: 56,
-    paddingBottom: 36,
-    paddingHorizontal: 24,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingTop: 52,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
-  heroIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  wizardBack: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  heroIconText: { fontSize: 28 },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: C.white,
-    textAlign: 'center',
+  wizardBackText: { color: C.white, fontSize: 20, fontWeight: '600' },
+  wizardStepLabel: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 },
+  wizardStepTitle: { fontSize: 16, fontWeight: '700', color: C.white },
+
+  // ── Progress bar ──
+  progressBar: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: C.primaryDark,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  progressSegmentActive: {
+    backgroundColor: '#4ADE80',
+  },
+
+  stepHint: {
+    fontSize: 13,
+    color: C.textSub,
+    lineHeight: 19,
     marginBottom: 8,
   },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
+
+  infoNote: {
+    fontSize: 12,
+    color: C.textMuted,
+    fontStyle: 'italic',
+    marginTop: 12,
+    lineHeight: 17,
   },
+
+  // ── Summary (step 5) ──
+  summaryRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  summaryLabel: { width: 100, fontSize: 13, color: C.textSub, fontWeight: '500' },
+  summaryValue: { flex: 1, fontSize: 13, color: C.text, fontWeight: '600' },
+
+  // ── Consent ──
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  checkmark: { color: C.white, fontSize: 13, fontWeight: '700' },
+  consentText: { flex: 1, fontSize: 13, color: C.textSub, lineHeight: 19 },
+
+  // ── Skip button ──
+  skipBtn: {
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skipBtnText: { color: C.textSub, fontWeight: '600', fontSize: 14 },
 
   // ── Profile header (view mode) — mint green, like status card ──
   profileHeader: {

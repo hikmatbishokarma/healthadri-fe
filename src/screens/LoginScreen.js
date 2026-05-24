@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { caregiverLink, sendOtp, verifyOtp } from '../services/api';
+import { caregiverLink, sendOtp, updateProfile, verifyOtp } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import ChipSelect from '../components/ChipSelect';
 
 const ROLES = [
   {
@@ -34,15 +35,9 @@ const ROLES = [
     bg: '#EFF6FF',
     icon: 'people-outline',
   },
-  {
-    key: 'navigator',
-    label: 'Navigator',
-    desc: 'Manage and support patient panels',
-    color: '#7C3AED',
-    bg: '#F3F0FF',
-    icon: 'compass-outline',
-  },
 ];
+
+const CAREGIVER_RELATIONSHIP_OPTIONS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Other'];
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -52,6 +47,10 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [tempToken, setTempToken] = useState('');
+  const [cgToken, setCgToken] = useState('');
+  const [cgUser, setCgUser] = useState(null);
+  const [cgName, setCgName] = useState('');
+  const [cgRelationship, setCgRelationship] = useState('');
   const [loading, setLoading] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [countdown, setCountdown] = useState(30);
@@ -136,9 +135,27 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await caregiverLink(tempToken, inviteCode.trim().toUpperCase());
-      await signIn(res.data.token, res.data.user);
+      setCgToken(res.data.token);
+      setCgUser(res.data.user);
+      setStep('caregiver_profile');
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Invalid invite code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCaregiverProfileSubmit = async () => {
+    if (!cgName.trim()) {
+      Alert.alert('Name required', 'Please enter your name.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await updateProfile({ name: cgName.trim(), caregiverRelationship: cgRelationship });
+      await signIn(cgToken, { ...cgUser, name: cgName.trim() });
+    } catch {
+      await signIn(cgToken, cgUser);
     } finally {
       setLoading(false);
     }
@@ -431,6 +448,78 @@ export default function LoginScreen() {
                 <Text style={s.secureDesc}>Protected by encryption</Text>
               </View>
             </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Caregiver profile step ──────────────────────────────────────────────────
+  if (step === 'caregiver_profile') {
+    return (
+      <SafeAreaView style={s.light}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
+            <View style={s.illustrationWrap}>
+              <View style={s.illustrationBlob} />
+              <Ionicons name="person-circle-outline" size={72} color="#1A6B5A" />
+            </View>
+
+            <Text style={s.stepTitle}>Tell us about you</Text>
+            <Text style={s.stepSubtitle}>
+              So the patient's care team knows{'\n'}who's supporting them
+            </Text>
+
+            <View style={{ width: '100%', marginBottom: 12 }}>
+              <Text style={s.fieldLabel}>Your name *</Text>
+              <View style={s.phoneInputBox}>
+                <TextInput
+                  style={[
+                    s.phoneField,
+                    { flex: 1, paddingHorizontal: 16 },
+                    Platform.OS === 'web' && { outline: 'none', border: 'none', backgroundColor: 'transparent' },
+                  ]}
+                  placeholder="e.g. Priya Sharma"
+                  placeholderTextColor="#94A3B8"
+                  value={cgName}
+                  onChangeText={setCgName}
+                  autoFocus
+                  underlineColorAndroid="transparent"
+                  selectionColor="#1A6B5A"
+                />
+              </View>
+            </View>
+
+            <View style={{ width: '100%', marginBottom: 24 }}>
+              <Text style={s.fieldLabel}>Relationship to patient</Text>
+              <ChipSelect
+                value={cgRelationship}
+                options={CAREGIVER_RELATIONSHIP_OPTIONS}
+                onChange={setCgRelationship}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[s.primaryBtn, !cgName.trim() && s.primaryBtnDisabled]}
+              onPress={handleCaregiverProfileSubmit}
+              disabled={loading || !cgName.trim()}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <View style={{ width: 34 }} />
+                  <Text style={s.primaryBtnText}>Continue</Text>
+                  <View style={s.btnArrow}>
+                    <Ionicons name="arrow-forward" size={16} color="#1A6B5A" />
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -755,6 +844,14 @@ const s = StyleSheet.create({
   // Lock notice
   lockNotice: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   lockNoticeText: { fontSize: 12, color: '#94A3B8' },
+
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
 
   // Step pill
   stepPill: {

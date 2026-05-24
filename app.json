@@ -10,13 +10,26 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D4035"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0D4035",
+          "sounds": []
+        }
+      ]
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.healthadri.app"
     },
     "android": {
+      "package": "com.healthadri.app",
       "adaptiveIcon": {
         "backgroundColor": "#0D4035"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"

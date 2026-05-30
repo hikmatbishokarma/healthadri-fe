@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Illustration from '../components/Illustration';
 import {
   View,
   Text,
@@ -140,6 +141,8 @@ export default function HospitalDirectoryScreen({ navigation }) {
 
           {filtered.length === 0 ? (
             <View style={styles.emptyCard}>
+              <Illustration name="hospital_empty" size={160} style={styles.emptyIllustration} />
+              <Text style={styles.emptyTitle}>No hospitals found</Text>
               <Text style={styles.emptyText}>
                 No hospitals match your search.
               </Text>
@@ -254,11 +257,13 @@ const styles = StyleSheet.create({
   emptyCard: {
     backgroundColor: C.card,
     borderRadius: 10,
-    padding: 16,
+    padding: 24,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: 'center',
   },
+  emptyIllustration: { marginBottom: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 6, textAlign: 'center' },
   emptyText: { color: C.muted, fontSize: 12 },
 
   hospCard: {

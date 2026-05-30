@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import Illustration from '../components/Illustration';
 import {
   View,
   Text,
@@ -19,6 +20,8 @@ import {
   getMessages,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import RemindersScreen from './RemindersScreen';
+import ChatScreen from './ChatScreen';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -159,7 +162,7 @@ export default function PatientDashboardScreen({ navigation }) {
     { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: '#E8F5F1', tint: '#1A6B5A', onPress: () => navigation.navigate('Symptom') },
     { icon: '💬',                                               label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
     { icon: '🔔',                                               label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
-    { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
+    // { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
     { img: require('../../assets/icons/insurance-card.png'), label: 'Insurance\nHelp',  bg: '#FEF3C7', tint: '#D97706', onPress: () => comingSoon('Insurance Help') },
     { img: require('../../assets/icons/health.png'),          label: 'My\nWellbeing',    bg: '#DCFCE7', tint: '#16A34A', onPress: () => comingSoon('My Wellbeing') },
     { img: require('../../assets/icons/book.png'),            label: 'Learn',             bg: '#EEF2FF', tint: '#4338CA', onPress: () => comingSoon('Awareness') },
@@ -169,10 +172,8 @@ export default function PatientDashboardScreen({ navigation }) {
   const PATIENT_TABS = [
     { id: 'Home',      icon: 'home-outline',       iconActive: 'home',       label: 'Home' },
     { id: 'CheckIn',   icon: 'pulse-outline',       iconActive: 'pulse',      label: 'Check In' },
-    { id: 'Reminders', icon: 'alarm-outline',       iconActive: 'alarm',      label: 'Reminders',
-      onPress: () => navigation.navigate('Reminders') },
-    { id: 'Messages',  icon: 'chatbubble-outline',  iconActive: 'chatbubble', label: 'Messages',
-      onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
+    { id: 'Reminders', icon: 'alarm-outline',       iconActive: 'alarm',      label: 'Reminders' },
+    { id: 'Messages',  icon: 'chatbubble-outline',  iconActive: 'chatbubble', label: 'Messages' },
     { id: 'Profile',   icon: 'person-outline',      iconActive: 'person',     label: 'Profile' },
   ];
 
@@ -386,6 +387,24 @@ export default function PatientDashboardScreen({ navigation }) {
         </ScrollView>
       )}
 
+      {/* ── REMINDERS TAB ── */}
+      {activeTab === 'Reminders' && (
+        <View style={{ flex: 1 }}>
+          <RemindersScreen navigation={navigation} route={{ params: {} }} embedded />
+        </View>
+      )}
+
+      {/* ── MESSAGES TAB ── */}
+      {activeTab === 'Messages' && (
+        <View style={{ flex: 1 }}>
+          <ChatScreen
+            navigation={navigation}
+            route={{ params: { withUserId: user?.assignedNavigatorId, name: 'Care Team' } }}
+            embedded
+          />
+        </View>
+      )}
+
       {/* ── BOTTOM TAB BAR ── */}
       <View style={s.tabBar}>
         {PATIENT_TABS.map((tab) => {
@@ -419,7 +438,7 @@ function NextUpCard({ nextItem, onPress }) {
   if (!nextItem) {
     return (
       <View style={s.nextEmpty}>
-        <Text style={s.nextEmptyIcon}>📅</Text>
+        <Illustration name="appointment_empty" size={72} />
         <View style={{ flex: 1, marginLeft: 14 }}>
           <Text style={s.nextEmptyTitle}>No upcoming appointments</Text>
           <Text style={s.nextEmptySub}>Your appointments will appear here</Text>

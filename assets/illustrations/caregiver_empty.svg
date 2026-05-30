@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="106" r="80" fill="#E8F5F1"/>
+
+  <!-- Patient (left, solid) -->
+  <circle cx="72" cy="76" r="22" fill="#64748B"/>
+  <path d="M36 140 C36 116 52 108 72 108 C92 108 108 116 108 140 Z" fill="#64748B"/>
+
+  <!-- Caregiver slot (right, dashed = not yet added) -->
+  <circle cx="130" cy="76" r="22" fill="#C6E8DC" stroke="#1A6B5A" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <path d="M94 140 C94 116 110 108 130 108 C150 108 166 116 166 140 Z" fill="#C6E8DC" stroke="#1A6B5A" stroke-width="2.5" stroke-dasharray="6 4"/>
+
+  <!-- Question mark in dashed person -->
+  <text x="130" y="82" text-anchor="middle" font-size="24" font-weight="700" fill="#1A6B5A" font-family="sans-serif">?</text>
+
+  <!-- Add (+) button -->
+  <circle cx="156" cy="152" r="20" fill="#1A6B5A"/>
+  <rect x="147" y="150" width="18" height="4" rx="2" fill="white"/>
+  <rect x="154" y="143" width="4" height="18" rx="2" fill="white"/>
+</svg>

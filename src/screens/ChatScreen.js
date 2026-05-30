@@ -54,7 +54,7 @@ function NavNotifiedPill() {
   );
 }
 
-export default function ChatScreen({ navigation }) {
+export default function ChatScreen({ navigation, embedded = false }) {
   const { user } = useAuth();
 
   const isCaregiver = user?.role === 'caregiver';
@@ -141,25 +141,27 @@ export default function ChatScreen({ navigation }) {
   const onlineDot = navigatorOnline ? '#6FCFA0' : '#F5A623';
 
   return (
-    <SafeAreaView style={s.root} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.header} />
+    <SafeAreaView style={s.root} edges={embedded ? [] : ['top']}>
+      {!embedded && <StatusBar barStyle="light-content" backgroundColor={theme.header} />}
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <View style={[s.hdr, { backgroundColor: theme.header }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
-        </TouchableOpacity>
-        <View style={[s.hdrAvatar, { backgroundColor: theme.avatarBg }]}>
-          <Text style={s.hdrAvatarText}>SN</Text>
+      {!embedded && (
+        <View style={[s.hdr, { backgroundColor: theme.header }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          <View style={[s.hdrAvatar, { backgroundColor: theme.avatarBg }]}>
+            <Text style={s.hdrAvatarText}>SN</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.hdrName}>Your Navigator</Text>
+            <Text style={s.hdrSub}>
+              {navigatorOnline ? 'Online' : 'Offline · replies when available'}
+            </Text>
+          </View>
+          <View style={[s.statusDot, { backgroundColor: onlineDot }]} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.hdrName}>Your Navigator</Text>
-          <Text style={s.hdrSub}>
-            {navigatorOnline ? 'Online' : 'Offline · replies when available'}
-          </Text>
-        </View>
-        <View style={[s.statusDot, { backgroundColor: onlineDot }]} />
-      </View>
+      )}
 
       {/* ── Caregiver banner ─────────────────────────────────── */}
       {isCaregiver && (

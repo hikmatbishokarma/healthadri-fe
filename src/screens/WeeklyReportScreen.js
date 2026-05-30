@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Illustration from '../components/Illustration';
 import {
   View,
   Text,
@@ -71,6 +72,8 @@ export default function WeeklyReportScreen({ navigation }) {
         <ActivityIndicator color={C.teal} style={{ marginTop: 30 }} />
       ) : !report || Object.keys(report.data || {}).length === 0 ? (
         <View style={styles.emptyCard}>
+          <Illustration name="reports_empty" size={160} style={styles.emptyIllustration} />
+          <Text style={styles.emptyTitle}>No check-ins this week</Text>
           <Text style={styles.emptyText}>
             No symptom check-ins this week yet.
           </Text>
@@ -215,6 +218,9 @@ const styles = StyleSheet.create({
     margin: 14,
     borderWidth: 1,
     borderColor: C.border,
+    alignItems: 'center',
   },
+  emptyIllustration: { marginBottom: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 6, textAlign: 'center' },
   emptyText: { fontSize: 13, color: C.muted, textAlign: 'center' },
 });

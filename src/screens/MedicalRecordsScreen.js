@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import Illustration from '../components/Illustration';
 import {
   View,
   Text,
@@ -183,7 +184,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         >
           {docs.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>📁</Text>
+              <Illustration name="reports_empty" size={160} style={styles.emptyIllustration} />
               <Text style={styles.emptyTitle}>No documents yet</Text>
               <Text style={styles.emptyText}>
                 {readOnly
@@ -418,8 +419,8 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     marginTop: 30,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 10 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 6 },
+  emptyIllustration: { marginBottom: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 6, textAlign: 'center' },
   emptyText: { fontSize: 12, color: C.muted, textAlign: 'center', lineHeight: 18 },
 
   docCard: {

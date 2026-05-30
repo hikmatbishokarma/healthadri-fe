@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="106" r="80" fill="#E8F5F1"/>
+
+  <!-- Connection arc between people -->
+  <path d="M72 88 Q100 60 130 88" stroke="#1A6B5A" stroke-width="2.5" stroke-dasharray="5 3" fill="none"/>
+
+  <!-- Patient (left) -->
+  <circle cx="68" cy="80" r="22" fill="#64748B"/>
+  <path d="M32 142 C32 118 48 110 68 110 C88 110 104 118 104 142 Z" fill="#64748B"/>
+
+  <!-- Caregiver (right) -->
+  <circle cx="132" cy="80" r="22" fill="#2D9B83"/>
+  <path d="M96 142 C96 118 112 110 132 110 C152 110 168 118 168 142 Z" fill="#2D9B83"/>
+
+  <!-- Connected badge -->
+  <circle cx="100" cy="54" r="16" fill="#1A6B5A"/>
+  <path d="M92 54 L97 59 L109 48" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

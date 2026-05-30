@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="108" r="80" fill="#E8F5F1"/>
+
+  <!-- Back document (shadow) -->
+  <rect x="58" y="62" width="90" height="112" rx="8" fill="#C6E8DC" transform="rotate(-6 58 62)"/>
+
+  <!-- Main document -->
+  <rect x="52" y="58" width="96" height="120" rx="8" fill="white" stroke="#1A6B5A" stroke-width="2"/>
+
+  <!-- Folded corner -->
+  <path d="M124 58 L148 82 L124 82 Z" fill="#E8F5F1"/>
+  <path d="M124 58 L148 82 L124 82 Z" stroke="#1A6B5A" stroke-width="1.5"/>
+
+  <!-- Document lines (text placeholder) -->
+  <rect x="66" y="94" width="52" height="6" rx="3" fill="#E8F5F1"/>
+  <rect x="66" y="108" width="68" height="5" rx="2.5" fill="#E8F5F1"/>
+  <rect x="66" y="120" width="60" height="5" rx="2.5" fill="#E8F5F1"/>
+  <rect x="66" y="132" width="44" height="5" rx="2.5" fill="#E8F5F1"/>
+
+  <!-- Mini pulse / chart line -->
+  <polyline points="66,152 76,152 82,140 90,160 98,144 106,152 118,152 126,145 134,152" stroke="#1A6B5A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Upload arrow icon -->
+  <circle cx="148" cy="148" r="16" fill="#1A6B5A"/>
+  <path d="M148 156 L148 142 M142 148 L148 142 L154 148" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

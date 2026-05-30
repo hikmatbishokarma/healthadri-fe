@@ -35,6 +35,9 @@ export const verifyOtp = (phone, otp, role) =>
 export const caregiverLink = (tempToken, inviteCode) =>
   api.post('/auth/caregiver/link', { tempToken, inviteCode });
 
+export const firebaseVerify = (idToken, role) =>
+  api.post('/auth/firebase-verify', { idToken, ...(role && { role }) });
+
 export const generateInvite = () => api.post('/patients/invite');
 
 export const getCaregiverPatient = () => api.get('/caregiver/patient');

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Illustration from '../components/Illustration';
 import {
   View,
   Text,
@@ -61,7 +62,7 @@ const TYPE_LABELS = {
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-export default function RemindersScreen({ navigation }) {
+export default function RemindersScreen({ navigation, embedded = false }) {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [reminders, setReminders] = useState([]);
@@ -137,17 +138,20 @@ export default function RemindersScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
-
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Reminders</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </SafeAreaView>
+      {!embedded && (
+        <>
+          <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
+          <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <Text style={styles.backIcon}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>My Reminders</Text>
+              <View style={{ width: 32 }} />
+            </View>
+          </SafeAreaView>
+        </>
+      )}
 
       {loading ? (
         <ActivityIndicator color={C.teal} style={{ marginTop: 30 }} />
@@ -160,8 +164,10 @@ export default function RemindersScreen({ navigation }) {
           <Text style={styles.sectionLabel}>Upcoming</Text>
           {upcoming.length === 0 ? (
             <View style={styles.emptyCard}>
+              <Illustration name="appointment_empty" size={160} style={styles.emptyIllustration} />
+              <Text style={styles.emptyTitle}>No Upcoming Appointments</Text>
               <Text style={styles.emptyText}>
-                Nothing upcoming. Tap + to add an appointment, or upload a prescription to get auto-extracted reminders.
+                Tap + to add an appointment, or upload a prescription to get auto-extracted reminders.
               </Text>
             </View>
           ) : (
@@ -488,11 +494,13 @@ const styles = StyleSheet.create({
   emptyCard: {
     backgroundColor: C.card,
     borderRadius: 10,
-    padding: 16,
+    padding: 24,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: 'center',
   },
+  emptyIllustration: { marginBottom: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 6, textAlign: 'center' },
   emptyText: { color: C.muted, fontSize: 12 },
 
   apptCard: {

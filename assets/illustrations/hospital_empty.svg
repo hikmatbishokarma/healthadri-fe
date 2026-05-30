@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="110" r="80" fill="#E8F5F1"/>
+
+  <!-- Ground line -->
+  <rect x="30" y="162" width="140" height="4" rx="2" fill="#C6E8DC"/>
+
+  <!-- Building body -->
+  <rect x="48" y="90" width="104" height="72" rx="4" fill="white" stroke="#1A6B5A" stroke-width="2"/>
+
+  <!-- Roof / top section -->
+  <rect x="60" y="72" width="80" height="24" rx="4" fill="#1A6B5A"/>
+
+  <!-- Roof cross -->
+  <rect x="93" y="60" width="14" height="36" rx="4" fill="white"/>
+  <rect x="80" y="73" width="40" height="14" rx="4" fill="white"/>
+
+  <!-- Windows (left) -->
+  <rect x="58" y="104" width="20" height="20" rx="3" fill="#E8F5F1" stroke="#1A6B5A" stroke-width="1.5"/>
+  <rect x="58" y="132" width="20" height="20" rx="3" fill="#E8F5F1" stroke="#1A6B5A" stroke-width="1.5"/>
+
+  <!-- Windows (right) -->
+  <rect x="122" y="104" width="20" height="20" rx="3" fill="#E8F5F1" stroke="#1A6B5A" stroke-width="1.5"/>
+  <rect x="122" y="132" width="20" height="20" rx="3" fill="#E8F5F1" stroke="#1A6B5A" stroke-width="1.5"/>
+
+  <!-- Door -->
+  <rect x="86" y="128" width="28" height="34" rx="4" fill="#C6E8DC" stroke="#1A6B5A" stroke-width="1.5"/>
+  <circle cx="108" cy="146" r="2.5" fill="#1A6B5A"/>
+</svg>

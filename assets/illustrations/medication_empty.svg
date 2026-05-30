@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <circle cx="100" cy="108" r="80" fill="#E8F5F1"/>
+
+  <!-- Pill bottle -->
+  <rect x="72" y="78" width="56" height="72" rx="8" fill="white" stroke="#1A6B5A" stroke-width="2"/>
+  <!-- Bottle cap -->
+  <rect x="68" y="66" width="64" height="18" rx="6" fill="#1A6B5A"/>
+  <!-- Label stripe -->
+  <rect x="72" y="100" width="56" height="28" fill="#E8F5F1"/>
+  <!-- Cross on label -->
+  <rect x="93" y="107" width="14" height="4" rx="2" fill="#1A6B5A"/>
+  <rect x="98" y="102" width="4" height="14" rx="2" fill="#1A6B5A"/>
+
+  <!-- Small pill (left) -->
+  <ellipse cx="50" cy="130" rx="16" ry="10" fill="white" stroke="#1A6B5A" stroke-width="2"/>
+  <rect x="34" y="120" width="16" height="20" rx="0" fill="#C6E8DC"/>
+  <line x1="50" y1="120" x2="50" y2="140" stroke="#1A6B5A" stroke-width="2"/>
+
+  <!-- Small pill (right) -->
+  <rect x="134" y="122" width="32" height="16" rx="8" fill="white" stroke="#1A6B5A" stroke-width="2"/>
+  <rect x="134" y="122" width="16" height="16" rx="8" fill="#C6E8DC"/>
+
+  <!-- Dots suggesting schedule -->
+  <circle cx="82" cy="158" r="5" fill="#1A6B5A" opacity="0.3"/>
+  <circle cx="100" cy="158" r="5" fill="#1A6B5A"/>
+  <circle cx="118" cy="158" r="5" fill="#1A6B5A" opacity="0.3"/>
+</svg>

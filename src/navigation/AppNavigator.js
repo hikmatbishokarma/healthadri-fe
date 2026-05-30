@@ -12,18 +12,16 @@ import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PatientDashboardScreen from '../screens/PatientDashboardScreen';
 import SymptomScreen from '../screens/SymptomScreen';
-import NavigatorDashboardScreen from '../screens/NavigatorDashboardScreen';
 import ChatScreen from '../screens/ChatScreen';
 import HospitalDirectoryScreen from '../screens/HospitalDirectoryScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import WeeklyReportScreen from '../screens/WeeklyReportScreen';
 import MedicalRecordsScreen from '../screens/MedicalRecordsScreen';
-import DraftsListScreen from '../screens/DraftsListScreen';
-import DraftReviewScreen from '../screens/DraftReviewScreen';
 import AiExplainerScreen from '../screens/AiExplainerScreen';
-import PlaybookActiveScreen from '../screens/PlaybookActiveScreen';
 import CaregiverDashboardScreen from '../screens/CaregiverDashboardScreen';
-import NavigatorChatScreen from '../screens/NavigatorChatScreen';
+import CaregiverScreen from '../screens/CaregiverScreen';
+import AddCaregiverScreen from '../screens/AddCaregiverScreen';
+import ConnectCaregiverScreen from '../screens/ConnectCaregiverScreen';
 
 const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -94,44 +92,6 @@ export default function AppNavigator() {
             component={ProfileScreen}
             options={{ headerShown: false }}
           />
-        ) : user.role === 'navigator' ? (
-          <>
-            <Stack.Screen
-              name="NavigatorDashboard"
-              component={NavigatorDashboardScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="PlaybookActive"
-              component={PlaybookActiveScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Chat"
-              component={ChatScreen}
-              options={({ route }) => ({ title: route.params?.name || 'Chat' })}
-            />
-            <Stack.Screen
-              name="MedicalRecords"
-              component={MedicalRecordsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="DraftsList"
-              component={DraftsListScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="DraftReview"
-              component={DraftReviewScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="NavigatorChat"
-              component={NavigatorChatScreen}
-              options={{ headerShown: false }}
-            />
-          </>
         ) : (
           <>
             <Stack.Screen
@@ -167,6 +127,21 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Caregiver"
+              component={CaregiverScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AddCaregiver"
+              component={AddCaregiverScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ConnectCaregiver"
+              component={ConnectCaregiverScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

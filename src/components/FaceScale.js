@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 // Wong-Baker FACES inspired: 5 faces map to numeric values 0/3/5/7/10
 // so triage thresholds (>=7 high, >=4 med) keep working server-side.
 export const FACES = [
-  { value: 0,  emoji: '😄', label: 'None',    color: '#16A34A', bg: '#F0FDF4' },
-  { value: 3,  emoji: '🙂', label: 'A little', color: '#65A30D', bg: '#F7FEE7' },
-  { value: 5,  emoji: '😐', label: 'Some',     color: '#D97706', bg: '#FFFBEB' },
-  { value: 7,  emoji: '😞', label: 'A lot',    color: '#DC2626', bg: '#FEF2F2' },
-  { value: 10, emoji: '😣', label: 'Severe',   color: '#7F1D1D', bg: '#FFF1F2' },
+  { value: 0,  icon: 'happy',         label: 'None',    color: '#16A34A', bg: '#F0FDF4' },
+  { value: 3,  icon: 'happy-outline', label: 'A little', color: '#65A30D', bg: '#F7FEE7' },
+  { value: 5,  icon: 'remove-circle-outline', label: 'Some', color: '#D97706', bg: '#FFFBEB' },
+  { value: 7,  icon: 'sad-outline',   label: 'A lot',   color: '#DC2626', bg: '#FEF2F2' },
+  { value: 10, icon: 'sad',           label: 'Severe',  color: '#7F1D1D', bg: '#FFF1F2' },
 ];
 
 export function faceForValue(v) {
@@ -53,7 +54,7 @@ export default function FaceScale({ value, onChange }) {
                 { transform: [{ scale: scales[i] }] },
               ]}
             >
-              <Text style={styles.emoji}>{f.emoji}</Text>
+              <Ionicons name={f.icon} size={28} color={f.color} />
             </Animated.View>
             <Text
               style={[
@@ -88,7 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     marginBottom: 7,
   },
-  emoji: { fontSize: 28, lineHeight: 33 },
   label: {
     fontSize: 10,
     color: '#64748B',

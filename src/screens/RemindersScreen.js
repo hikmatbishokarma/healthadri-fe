@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import Illustration from '../components/Illustration';
 import {
   View,
@@ -19,6 +20,8 @@ import {
   createAppointment,
   updateAppointment,
   getPatientReminders,
+  getCareReminders,
+  respondReminder,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,6 +69,7 @@ export default function RemindersScreen({ navigation, embedded = false }) {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [reminders, setReminders] = useState([]);
+  const [careReminders, setCareReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -73,15 +77,18 @@ export default function RemindersScreen({ navigation, embedded = false }) {
   const fetchAll = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const [aRes, rRes] = await Promise.all([
-        getAppointments(user._id),
-        getPatientReminders(user._id),
+      const [aRes, rRes, cRes] = await Promise.all([
+        getAppointments(user._id).catch(() => ({ data: [] })),
+        getPatientReminders(user._id).catch(() => ({ data: [] })),
+        getCareReminders(user._id).catch(() => ({ data: [] })),
       ]);
       setAppointments(aRes.data || []);
       setReminders(rRes.data || []);
+      setCareReminders(cRes.data || []);
     } catch {
       setAppointments([]);
       setReminders([]);
+      setCareReminders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,28 +111,33 @@ export default function RemindersScreen({ navigation, embedded = false }) {
     appointments.forEach((a) => {
       const when = new Date(a.scheduledAt).getTime();
       const isFinalized = ['completed', 'cancelled', 'missed'].includes(a.status);
-      items.push({
-        kind: 'appointment',
-        when,
-        isPast: isFinalized || when < now,
-        data: a,
-      });
+      items.push({ kind: 'appointment', when, isPast: isFinalized || when < now, data: a });
     });
 
     reminders.forEach((r) => {
       const when = new Date(r.date).getTime();
-      items.push({
-        kind: 'reminder',
-        when,
-        isPast: when < now,
-        data: r,
-      });
+      items.push({ kind: 'reminder', when, isPast: when < now, data: r });
+    });
+
+    // Group care reminders by calendar date
+    const careByDate = new Map();
+    careReminders.forEach((r) => {
+      const dateKey = new Date(r.scheduledAt).toLocaleDateString();
+      if (!careByDate.has(dateKey)) careByDate.set(dateKey, []);
+      careByDate.get(dateKey).push(r);
+    });
+    careByDate.forEach((dayReminders, dateKey) => {
+      const when = new Date(dayReminders[0].scheduledAt).getTime();
+      const allDone = dayReminders.every(r =>
+        ['PATIENT_CONFIRMED', 'CAREGIVER_CONFIRMED', 'MISSED', 'CANCELLED'].includes(r.status)
+      );
+      items.push({ kind: 'careGroup', when, isPast: allDone || when < now - 24*60*60*1000, data: { date: dateKey, reminders: dayReminders } });
     });
 
     const up = items.filter((i) => !i.isPast).sort((a, b) => a.when - b.when);
     const pa = items.filter((i) => i.isPast).sort((a, b) => b.when - a.when);
     return { upcoming: up, past: pa };
-  }, [appointments, reminders]);
+  }, [appointments, reminders, careReminders]);
 
   const handleMarkCompleted = async (id) => {
     try {
@@ -133,6 +145,15 @@ export default function RemindersScreen({ navigation, embedded = false }) {
       fetchAll();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not update');
+    }
+  };
+
+  const handleRespond = async (id, response) => {
+    try {
+      await respondReminder(id, response);
+      fetchAll();
+    } catch {
+      Alert.alert('Error', 'Could not update reminder');
     }
   };
 
@@ -144,10 +165,21 @@ export default function RemindersScreen({ navigation, embedded = false }) {
           <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
             <View style={styles.header}>
               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                <Text style={styles.backIcon}>←</Text>
+                <Ionicons name="chevron-back" size={22} color="#fff" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>My Reminders</Text>
-              <View style={{ width: 32 }} />
+              {/* DEV: tap to test alarm screen */}
+              {__DEV__ && careReminders.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('MedicationAlarm', {
+                    scheduledAt: careReminders[0].scheduledAt,
+                    patientId: user._id,
+                  })}
+                  style={{ paddingHorizontal: 8 }}
+                >
+                  <Ionicons name="alarm-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
           </SafeAreaView>
         </>
@@ -178,6 +210,13 @@ export default function RemindersScreen({ navigation, embedded = false }) {
                   appt={item.data}
                   onComplete={() => handleMarkCompleted(item.data._id)}
                 />
+              ) : item.kind === 'careGroup' ? (
+                <MedGroupCard
+                  key={`cg:${item.data.date}`}
+                  date={item.data.date}
+                  reminders={item.data.reminders}
+                  onRespond={handleRespond}
+                />
               ) : (
                 <ReminderCard key={`r:${item.data._id}`} reminder={item.data} />
               ),
@@ -190,6 +229,14 @@ export default function RemindersScreen({ navigation, embedded = false }) {
               {past.map((item) =>
                 item.kind === 'appointment' ? (
                   <ApptCard key={`a:${item.data._id}`} appt={item.data} past />
+                ) : item.kind === 'careGroup' ? (
+                  <MedGroupCard
+                    key={`cg:${item.data.date}`}
+                    date={item.data.date}
+                    reminders={item.data.reminders}
+                    onRespond={handleRespond}
+                    past
+                  />
                 ) : (
                   <ReminderCard key={`r:${item.data._id}`} reminder={item.data} past />
                 ),
@@ -239,7 +286,7 @@ function ApptCard({ appt, past, onComplete }) {
         {appt.doctor ? <Text style={styles.apptDoc}>{appt.doctor}</Text> : null}
         <Text style={styles.apptMeta}>
           {appt.location ? `${appt.location} · ` : ''}
-          {past && appt.status === 'completed' ? 'Completed ✓' : time}
+          {past && appt.status === 'completed' ? 'Completed' : time}
         </Text>
       </View>
 
@@ -290,7 +337,10 @@ function ReminderCard({ reminder, past }) {
 
       <View style={{ flex: 1 }}>
         <View style={styles.reminderRow}>
-          <Text style={styles.reminderBadge}>🔔 REMINDER</Text>
+          <View style={[styles.reminderBadge, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+            <Ionicons name="alarm-outline" size={11} color="#7C3AED" />
+            <Text style={styles.reminderBadgeText}>REMINDER</Text>
+          </View>
           <Text style={[styles.reminderTypePill, { color: accentColor, backgroundColor: accentPale }]}>
             {isVisit ? 'VISIT' : 'TEST'}
           </Text>
@@ -448,6 +498,78 @@ function AddAppointmentModal({ visible, onClose, onCreated, patientId }) {
   );
 }
 
+function MedGroupCard({ date, reminders, onRespond, past }) {
+  const d = new Date(reminders[0].scheduledAt);
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = MONTHS[d.getMonth()];
+  const doneCount = reminders.filter(r =>
+    r.response === 'TAKEN' || r.status === 'PATIENT_CONFIRMED'
+  ).length;
+  const total = reminders.length;
+  const allDone = doneCount === total;
+
+  return (
+    <View style={[styles.medGroupCard, past && { opacity: 0.7 }]}>
+      {/* Date header */}
+      <View style={styles.medGroupHeader}>
+        <View style={styles.medGroupDateBox}>
+          <Text style={styles.medGroupDay}>{day}</Text>
+          <Text style={styles.medGroupMon}>{mon}</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.medGroupTitle}>Medications</Text>
+          <Text style={styles.medGroupSub}>
+            {allDone ? '✓ All taken' : `${doneCount}/${total} taken`}
+          </Text>
+        </View>
+        <View style={[styles.medGroupPill, { backgroundColor: allDone ? '#DCFCE7' : C.tealPale }]}>
+          <Text style={[styles.medGroupPillText, { color: allDone ? C.green : C.teal }]}>
+            {allDone ? 'Done' : 'Pending'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Each medication row */}
+      {reminders.map((r) => {
+        const td = r.carePlanTaskId?.taskData || {};
+        const isTaken   = r.response === 'TAKEN' || r.status === 'PATIENT_CONFIRMED';
+        const isMissed  = r.status === 'MISSED';
+        const isSkipped = r.response === 'SKIPPED' || r.status === 'SKIPPED';
+        const timing = td.timing || '';
+
+        return (
+          <View key={r._id} style={styles.medRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.medRowName} numberOfLines={1}>{r.taskTitle}</Text>
+              {timing ? <Text style={styles.medRowTiming}>{timing}</Text> : null}
+              {td.dosage ? <Text style={styles.medRowTiming}>{td.dosage}</Text> : null}
+            </View>
+            {isTaken   && <Text style={[styles.medRowStatus, { color: C.green }]}>✓ Taken</Text>}
+            {isMissed  && <Text style={[styles.medRowStatus, { color: C.red   }]}>Missed</Text>}
+            {isSkipped && <Text style={[styles.medRowStatus, { color: C.muted }]}>Skipped</Text>}
+            {!past && !isTaken && !isMissed && !isSkipped && (
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => onRespond(r._id, 'TAKEN')}
+                  style={[styles.medBtn, { backgroundColor: C.teal }]}
+                >
+                  <Text style={styles.medBtnPrimary}>Taken</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => onRespond(r._id, 'SKIPPED')}
+                  style={[styles.medBtn, { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border }]}
+                >
+                  <Text style={styles.medBtnSecondary}>Skip</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
 
@@ -535,9 +657,13 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   reminderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reminderBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: C.muted,
+    color: '#7C3AED',
     letterSpacing: 0.5,
   },
   reminderTypePill: {
@@ -559,6 +685,55 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   btnSecondaryText: { color: C.text, fontSize: 9, fontWeight: '700' },
+
+  medGroupCard: {
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  medGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    backgroundColor: C.tealPale,
+  },
+  medGroupDateBox: {
+    backgroundColor: C.teal,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    minWidth: 44,
+  },
+  medGroupDay: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
+  medGroupMon: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  medGroupTitle: { fontSize: 13, fontWeight: '700', color: C.text },
+  medGroupSub: { fontSize: 11, color: C.muted, marginTop: 1 },
+  medGroupPill: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99,
+  },
+  medGroupPillText: { fontSize: 11, fontWeight: '700' },
+
+  medRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.border,
+    gap: 10,
+  },
+  medRowName: { fontSize: 13, fontWeight: '600', color: C.text },
+  medRowTiming: { fontSize: 11, color: C.muted, marginTop: 2 },
+  medRowStatus: { fontSize: 12, fontWeight: '600' },
+  medBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  medBtnPrimary: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  medBtnSecondary: { color: C.text, fontSize: 11, fontWeight: '600' },
 
   modalBackdrop: {
     flex: 1,

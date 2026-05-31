@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -41,19 +42,19 @@ const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const TYPE_STYLES = {
   safe: {
     label: 'Medical info',
-    icon: '🩺',
+    icon: 'medkit-outline',
     bg: C.greenPale,
     color: '#15803D',
   },
   abusive: {
     label: 'Please be respectful',
-    icon: '⚠️',
+    icon: 'warning-outline',
     bg: C.redPale,
     color: '#B91C1C',
   },
   'non-medical': {
     label: 'Not a medical question',
-    icon: '🚫',
+    icon: 'ban-outline',
     bg: C.amberPale,
     color: '#B45309',
   },
@@ -190,7 +191,7 @@ export default function AiExplainerScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Ask the AI Explainer</Text>
@@ -237,7 +238,7 @@ export default function AiExplainerScreen({ navigation }) {
               onPress={() => setAttachedFile(null)}
               style={styles.fileChipClose}
             >
-              <Text style={styles.fileChipCloseText}>✕</Text>
+              <Ionicons name="close" size={14} color="#64748B" />
             </TouchableOpacity>
           </View>
         )}
@@ -308,13 +309,12 @@ function BotBubble({ text, type }) {
   return (
     <View style={styles.botRow}>
       <View style={styles.botAvatar}>
-        <Text style={styles.botAvatarText}>🤖</Text>
+        <Ionicons name="sparkles-outline" size={18} color="#fff" />
       </View>
       <View style={styles.botBubble}>
         <View style={[styles.typePill, { backgroundColor: meta.bg }]}>
-          <Text style={[styles.typePillText, { color: meta.color }]}>
-            {meta.icon} {meta.label}
-          </Text>
+          <Ionicons name={meta.icon} size={12} color={meta.color} />
+          <Text style={[styles.typePillText, { color: meta.color }]}>{meta.label}</Text>
         </View>
         <Text style={styles.botText}>{text}</Text>
       </View>
@@ -326,7 +326,7 @@ function TypingBubble() {
   return (
     <View style={styles.botRow}>
       <View style={styles.botAvatar}>
-        <Text style={styles.botAvatarText}>🤖</Text>
+        <Ionicons name="sparkles-outline" size={18} color="#fff" />
       </View>
       <View style={[styles.botBubble, styles.typingBubble]}>
         <ActivityIndicator color={C.teal} size="small" />
@@ -408,6 +408,9 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   typePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 2,

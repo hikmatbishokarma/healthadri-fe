@@ -181,7 +181,7 @@ function AlertCard({ ui, onContact }) {
   return (
     <View style={[s.alertCard, { backgroundColor: ui.statusBg, borderColor: ui.statusBorder }]}>
       <View style={[s.alertIconBox, { backgroundColor: ui.statusColor + '22' }]}>
-        <Text style={s.alertIconText}>🔔</Text>
+        <Ionicons name="notifications-outline" size={18} color={ui.statusColor} />
       </View>
       <View style={{ flex: 1, marginHorizontal: 10 }}>
         <Text style={[s.alertTitle, { color: ui.statusColor }]}>{ui.statusMessage}</Text>
@@ -196,11 +196,11 @@ function AlertCard({ ui, onContact }) {
   );
 }
 
-function OverviewCol({ icon, iconBg, label, value, valueColor: vc, valueSub, valueSubColor, arrow, last }) {
+function OverviewCol({ icon, iconBg, iconColor = '#374151', label, value, valueColor: vc, valueSub, valueSubColor, arrow, last }) {
   return (
     <View style={[s.overviewCol, !last && s.overviewColBorder]}>
       <View style={[s.overviewIconBox, { backgroundColor: iconBg }]}>
-        <Text style={{ fontSize: 15 }}>{icon}</Text>
+        <Ionicons name={icon} size={15} color={iconColor} />
       </View>
       <Text style={s.overviewLabel}>{label}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -230,20 +230,20 @@ function OverviewCard({ ui }) {
       </View>
       <View style={s.overviewRow}>
         <OverviewCol
-          icon="📈" iconBg="#DCFCE7"
+          icon="trending-up-outline" iconBg="#DCFCE7" iconColor="#16A34A"
           label="Symptoms" value={sympLabel} valueColor={sympColor}
           arrow={top?.value >= 6 ? '↑' : null}
         />
         <OverviewCol
-          icon="📅" iconBg="#DBEAFE"
+          icon="calendar-outline" iconBg="#DBEAFE" iconColor="#1D4ED8"
           label="Next Visit" value={nextLabel} valueSub={nextSub}
         />
         <OverviewCol
-          icon="📋" iconBg="#EDE9FE"
+          icon="clipboard-outline" iconBg="#EDE9FE" iconColor="#7C3AED"
           label="Last Check-in" value={ui.lastCheckinDate ?? '–'} valueSub={ui.lastCheckinTime}
         />
         <OverviewCol
-          icon="🛡️" iconBg="#FEF3C7"
+          icon="shield-checkmark-outline" iconBg="#FEF3C7" iconColor="#D97706"
           label="Treatment Phase" value={ui.patient?.cancerStage ?? '–'}
           valueSub="On Track" valueSubColor={C.green} last
         />
@@ -269,7 +269,7 @@ function ThingsToNote({ ui }) {
       {rows.map((sym, i) => (
         <TouchableOpacity key={i} style={[s.noteRow, s.noteRowBorder]} activeOpacity={0.7}>
           <View style={[s.noteIconBox, { backgroundColor: '#FEE2E2' }]}>
-            <Text style={{ fontSize: 14 }}>❤️</Text>
+            <Ionicons name="heart" size={14} color="#EF4444" />
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -293,7 +293,7 @@ function ThingsToNote({ ui }) {
       {/* Caregiver Tip */}
       <TouchableOpacity style={s.noteRow} activeOpacity={0.7}>
         <View style={[s.noteIconBox, { backgroundColor: '#FEF9C3' }]}>
-          <Text style={{ fontSize: 14 }}>💡</Text>
+          <Ionicons name="bulb-outline" size={14} color="#D97706" />
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={[s.noteSymName, { color: C.teal }]}>Caregiver Tip</Text>
@@ -306,11 +306,11 @@ function ThingsToNote({ ui }) {
 }
 
 const PATIENT_MOODS = [
-  { key: 'very_good', emoji: '😊', label: 'Very Good', accent: '#16A34A' },
-  { key: 'good',      emoji: '🙂', label: 'Good',      accent: '#65A30D' },
-  { key: 'okay',      emoji: '😐', label: 'Okay',      accent: '#D97706' },
-  { key: 'not_good',  emoji: '😕', label: 'Not Good',  accent: '#EA580C' },
-  { key: 'very_bad',  emoji: '😞', label: 'Very Bad',  accent: '#DC2626' },
+  { key: 'very_good', icon: 'happy',         label: 'Very Good', accent: '#16A34A' },
+  { key: 'good',      icon: 'happy-outline', label: 'Good',      accent: '#65A30D' },
+  { key: 'okay',      icon: 'remove-circle-outline', label: 'Okay', accent: '#D97706' },
+  { key: 'not_good',  icon: 'sad-outline',   label: 'Not Good',  accent: '#EA580C' },
+  { key: 'very_bad',  icon: 'sad',           label: 'Very Bad',  accent: '#DC2626' },
 ];
 
 function PatientMoodCheck() {
@@ -327,7 +327,7 @@ function PatientMoodCheck() {
             onPress={() => setSelected(m.key)}
             activeOpacity={0.75}
           >
-            <Text style={s.moodEmoji}>{m.emoji}</Text>
+            <Ionicons name={m.icon} size={26} color={selected === m.key ? m.accent : '#94A3B8'} />
             <Text style={[s.moodLabel, selected === m.key && { color: m.accent, fontWeight: '700' }]}>{m.label}</Text>
           </TouchableOpacity>
         ))}
@@ -342,8 +342,8 @@ function PatientMoodCheck() {
 function HelpfulForCaregivers({ patient }) {
   const cancerType = patient?.cancerType ?? 'oral';
   const items = [
-    { icon: '📖', iconBg: '#EDE9FE', title: `Understanding ${cancerType} cancer`, sub: 'Learn about symptoms, treatment and care.' },
-    { icon: '🤝', iconBg: '#DCFCE7', title: 'Emotional support for caregivers', sub: 'Tips to manage stress and stay strong.' },
+    { icon: 'book-outline',   iconColor: '#7C3AED', iconBg: '#EDE9FE', title: `Understanding ${cancerType} cancer`, sub: 'Learn about symptoms, treatment and care.' },
+    { icon: 'people-outline', iconColor: '#16A34A', iconBg: '#DCFCE7', title: 'Emotional support for caregivers', sub: 'Tips to manage stress and stay strong.' },
   ];
   return (
     <View style={s.card}>
@@ -358,7 +358,7 @@ function HelpfulForCaregivers({ patient }) {
           activeOpacity={0.7}
         >
           <View style={[s.helpIconBox, { backgroundColor: item.iconBg }]}>
-            <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+            <Ionicons name={item.icon} size={18} color={item.iconColor} />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={s.helpTitle}>{item.title}</Text>

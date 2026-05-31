@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -10,7 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getSymptoms, submitSymptomEntry } from '../services/api';
+import { getSymptoms, submitSymptomEntry, getLatestSymptomEntry } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import FaceScale from '../components/FaceScale';
 
@@ -44,6 +45,7 @@ export default function SymptomScreen({ navigation }) {
   const [savedAlerts, setSavedAlerts] = useState(null);
   const [savedGuidance, setSavedGuidance] = useState([]);
   const [saveError, setSaveError] = useState(null);
+  const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
 
   // Always-current values for reading inside timer callbacks
   const valuesRef = useRef({});
@@ -53,10 +55,13 @@ export default function SymptomScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getSymptoms();
+        const [symptomsRes, entryRes] = await Promise.all([
+          getSymptoms(),
+          user?._id ? getLatestSymptomEntry(user._id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+        ]);
         const list =
-          res.data && res.data.length
-            ? res.data
+          symptomsRes.data && symptomsRes.data.length
+            ? symptomsRes.data
             : [
                 { _id: 'pain',    name: 'Pain',    min: 0, max: 10 },
                 { _id: 'fatigue', name: 'Fatigue', min: 0, max: 10 },
@@ -64,6 +69,12 @@ export default function SymptomScreen({ navigation }) {
                 { _id: 'fever',   name: 'Fever',   min: 0, max: 10 },
               ];
         setSymptoms(list);
+
+        const entry = entryRes.data;
+        if (entry?.createdAt) {
+          const entryDate = new Date(entry.createdAt);
+          setAlreadyCheckedIn(entryDate.toDateString() === new Date().toDateString());
+        }
       } catch {
         Alert.alert('Could not load', 'Please check your internet and try again.');
       } finally {
@@ -177,7 +188,7 @@ export default function SymptomScreen({ navigation }) {
 
         <View style={styles.body}>
           <View style={styles.savedCard}>
-            <Text style={styles.savedIcon}>✅</Text>
+            <Ionicons name="checkmark-circle" size={48} color="#16A34A" style={styles.savedIcon} />
             <Text style={styles.savedTitle}>
               {triggered.length > 0 ? "We'll check in with you" : 'Thank you!'}
             </Text>
@@ -203,7 +214,7 @@ export default function SymptomScreen({ navigation }) {
                 <Text style={styles.guidanceTitle}>What to expect next</Text>
                 {savedGuidance.map((g, i) => (
                   <View key={i} style={styles.guidanceRow}>
-                    <Text style={styles.guidanceCheck}>✓</Text>
+                    <Ionicons name="checkmark" size={14} color="#16A34A" style={styles.guidanceCheck} />
                     <Text style={styles.guidanceText}>{g}</Text>
                   </View>
                 ))}
@@ -246,7 +257,7 @@ export default function SymptomScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>How are you today?</Text>
           <View style={styles.langBadge}>
@@ -269,6 +280,15 @@ export default function SymptomScreen({ navigation }) {
           />
         </View>
       </SafeAreaView>
+
+      {alreadyCheckedIn && (
+        <View style={styles.resubmitBanner}>
+          <Ionicons name="checkmark-circle" size={16} color="#92400E" />
+          <Text style={styles.resubmitText}>
+            You already checked in today. Submit again only if your symptoms have changed.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.body}>
         <Text style={styles.stepLabel}>
@@ -301,7 +321,7 @@ export default function SymptomScreen({ navigation }) {
         <View style={styles.navBar}>
           <TouchableOpacity onPress={goBack} style={[styles.navBtn, styles.navBack]}>
             <Text style={styles.navBackText}>
-              {step === 0 ? 'Cancel' : '← Back'}
+              {step === 0 ? 'Cancel' : 'Back'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -317,7 +337,7 @@ export default function SymptomScreen({ navigation }) {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.navNextText}>
-                {isLast ? '✓ Save' : 'Next →'}
+                {isLast ? 'Save' : 'Next'}
               </Text>
             )}
           </TouchableOpacity>
@@ -439,6 +459,18 @@ const styles = StyleSheet.create({
   navNext: { backgroundColor: C.teal, flex: 1.5 },
   navNextDisabled: { backgroundColor: C.disabled },
   navNextText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  resubmitBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  resubmitText: { color: '#92400E', fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 17 },
 
   errorBanner: {
     backgroundColor: '#FEE2E2',

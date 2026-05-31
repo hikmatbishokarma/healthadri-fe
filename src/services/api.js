@@ -1,18 +1,23 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import Constants from 'expo-constants';
+
+import { getToken } from './storage/tokenStorage';
+import { logger } from './logger';
+import { getErrorMessage } from './errorHandler';
 
 // Resolve the dev machine's host so a physical device on the same Wi-Fi
 // can reach the backend. Expo exposes the LAN IP of the dev server here.
 const lanHost = Constants.expoConfig?.hostUri?.split(':')[0] ?? '';
 
-const BASE_URL = lanHost
-  ? `http://${lanHost}:3000`
-  : Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000'
-    : 'http://localhost:3000';
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (lanHost
+    ? `http://${lanHost}:3000`
+    : Platform.OS === 'android'
+      ? 'http://10.0.2.2:3000'
+      : 'http://localhost:3000');
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -20,12 +25,26 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Normalize every failed response: log it (dev only) and attach a user-safe
+// message. We re-reject the original error so existing try/catch callers keep
+// working unchanged — they can now optionally read `error.userMessage`.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url = error?.config?.url;
+    logger.error('API', error?.config?.method?.toUpperCase(), url, status ?? error?.code ?? error?.message);
+    error.userMessage = getErrorMessage(error);
+    return Promise.reject(error);
+  },
+);
 
 export const sendOtp = (phone) => api.post('/auth/send-otp', { phone });
 
@@ -54,8 +73,11 @@ export const submitSymptomEntry = (patientId, responses) =>
 export const getSymptomHistory = (patientId, days = 7) =>
   api.get('/symptom-entry/history', { params: { patientId, days } });
 
-export const getWeeklyReport = (patientId) =>
-  api.get('/reports/weekly', { params: { patientId } });
+export const getLatestSymptomEntry = (patientId) =>
+  api.get('/symptom-entry/latest', { params: { patientId } });
+
+export const getWeeklyReport = (patientId, weeksBack = 0) =>
+  api.get('/reports/weekly', { params: { patientId, weeksBack } });
 
 export const getLatestTriage = (patientId) =>
   api.get('/triage/latest', { params: { patientId } });
@@ -131,6 +153,12 @@ export const getPatientReminders = (patientId) =>
 
 export const updateTask = (id, payload) => api.patch(`/tasks/${id}`, payload);
 
+export const getCareReminders = (patientId) =>
+  api.get('/reminders', { params: { patientId, limit: 30 } });
+
+export const respondReminder = (id, response, skipReason) =>
+  api.post(`/reminders/${id}/respond`, { response, ...(skipReason && { skipReason }) });
+
 export const publishTask = (id) => api.post(`/tasks/${id}/publish`);
 
 export const deleteTask = (id) => api.delete(`/tasks/${id}`);
@@ -143,5 +171,8 @@ export const explainAi = (formData) =>
         : { 'Content-Type': 'multipart/form-data' },
     timeout: 60000,
   });
+
+export const registerPushToken = (userId, token) =>
+  api.post(`/users/${userId}/device-token`, { token });
 
 export default api;

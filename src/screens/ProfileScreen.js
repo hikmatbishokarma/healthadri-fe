@@ -239,7 +239,7 @@ export default function ProfileScreen({ navigation }) {
   if (isOnboarding) {
     const stepValid = () => {
       if (currentStep === 1) return form.name.trim() && form.age && form.gender;
-      if (currentStep === 2) return !!form.cancerType;
+      if (currentStep === 2) return !!form.cancerType && !!form.treatmentStatus;
       if (currentStep === 3) return caregiverChoice !== null;
       return true;
     };
@@ -415,7 +415,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
 
                 <Text style={[s.label, { marginTop: 24 }]}>
-                  Treatment Status <Text style={s.opt}>(Optional)</Text>
+                  Treatment Status <Text style={{ color: C.errorText }}>*</Text>
                 </Text>
                 <View style={s.listCard}>
                   {TREATMENT_STATUS.map((opt, idx) => {

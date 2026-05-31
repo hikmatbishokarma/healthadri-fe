@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import Illustration from '../components/Illustration';
 import {
   View,
@@ -14,7 +15,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   getDocuments,
@@ -43,10 +44,10 @@ const C = {
 };
 
 const CATEGORIES = [
-  { id: 'prescription', label: 'Prescription', color: C.teal,   pale: C.tealPale,   icon: '💊' },
-  { id: 'lab',          label: 'Lab Report',   color: C.blue,   pale: C.bluePale,   icon: '🧪' },
-  { id: 'discharge',    label: 'Discharge',    color: C.purple, pale: C.purplePale, icon: '🏥' },
-  { id: 'other',        label: 'Other',        color: C.muted,  pale: '#F1F5F9',    icon: '📄' },
+  { id: 'prescription', label: 'Prescription', color: C.teal,   pale: C.tealPale,   icon: 'medkit-outline' },
+  { id: 'lab',          label: 'Lab Report',   color: C.blue,   pale: C.bluePale,   icon: 'flask-outline' },
+  { id: 'discharge',    label: 'Discharge',    color: C.purple, pale: C.purplePale, icon: 'business-outline' },
+  { id: 'other',        label: 'Other',        color: C.muted,  pale: '#F1F5F9',    icon: 'document-outline' },
 ];
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -160,7 +161,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>
@@ -210,7 +211,8 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.card }}>
           <View style={styles.bottomBar}>
             <TouchableOpacity onPress={pickFile} style={styles.uploadBtn}>
-              <Text style={styles.uploadBtnText}>＋ Upload a document</Text>
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={styles.uploadBtnText}>Upload a document</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -237,7 +239,7 @@ function DocRow({ doc, readOnly, onOpen, onDelete }) {
     <View style={styles.docCard}>
       <TouchableOpacity onPress={onOpen} style={styles.docMain} activeOpacity={0.7}>
         <View style={[styles.docIcon, { backgroundColor: cat.pale }]}>
-          <Text style={{ fontSize: 22 }}>{cat.icon}</Text>
+          <Ionicons name={cat.icon} size={22} color={cat.color} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.docName} numberOfLines={1}>
@@ -265,6 +267,7 @@ function DocRow({ doc, readOnly, onOpen, onDelete }) {
 }
 
 function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploaded }) {
+  const insets = useSafeAreaInsets();
   const [category, setCategory] = useState('prescription');
   const [submitting, setSubmitting] = useState(false);
 
@@ -315,7 +318,7 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalSheet}>
+        <View style={[styles.modalSheet, { paddingBottom: 28 + insets.bottom }]}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Upload document</Text>
 
@@ -348,7 +351,7 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
                       : { backgroundColor: c.pale, borderColor: 'transparent' },
                   ]}
                 >
-                  <Text style={{ fontSize: 14 }}>{c.icon}</Text>
+                  <Ionicons name={c.icon} size={16} color={active ? '#fff' : c.color} />
                   <Text
                     style={[
                       styles.catChipText,
@@ -465,7 +468,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.teal,
     borderRadius: 12,
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   uploadBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 

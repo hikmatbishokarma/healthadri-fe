@@ -15,9 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getLatestTriage,
+  getLatestSymptomEntry,
   getAppointments,
   getPatientReminders,
-  getMessages,
+  getThread,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import RemindersScreen from './RemindersScreen';
@@ -67,6 +68,7 @@ const C = {
 export default function PatientDashboardScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [triage, setTriage] = useState(null);
+  const [checkedInToday, setCheckedInToday] = useState(false);
   const [nextItem, setNextItem] = useState(null);
   const [urgentReminder, setUrgentReminder] = useState(null);
   const [recentNavMessage, setRecentNavMessage] = useState(null);
@@ -76,46 +78,65 @@ export default function PatientDashboardScreen({ navigation }) {
     if (!user?._id) return;
     try {
       const navId = user.assignedNavigatorId;
-      const [triageRes, apptRes, remRes, msgRes] = await Promise.all([
-        getLatestTriage(user._id),
-        getAppointments(user._id),
-        getPatientReminders(user._id),
-        navId ? getMessages(user._id, navId) : Promise.resolve({ data: [] }),
+      const nil = { data: null };
+      const [triageRes, entryRes, apptRes, remRes, msgRes] = await Promise.all([
+        getLatestTriage(user._id).catch(() => nil),
+        getLatestSymptomEntry(user._id).catch(() => nil),
+        getAppointments(user._id).catch(() => nil),
+        getPatientReminders(user._id).catch(() => nil),
+        navId ? getThread(user._id).catch(() => nil) : Promise.resolve(nil),
       ]);
       setTriage(triageRes.data);
 
-      const now = Date.now();
-      const items = [];
-      (apptRes.data || []).forEach((a) => {
-        const when = new Date(a.scheduledAt).getTime();
-        const finalized = ['completed', 'cancelled', 'missed'].includes(a.status);
-        if (!finalized && when >= now) items.push({ kind: 'appointment', when, data: a });
-      });
-      (remRes.data || []).forEach((r) => {
-        const when = new Date(r.date).getTime();
-        if (when >= now) items.push({ kind: 'reminder', when, data: r });
-      });
-      items.sort((a, b) => a.when - b.when);
-      setNextItem(items[0] || null);
+      const entry = entryRes.data;
+      if (entry?.createdAt) {
+        const entryDate = new Date(entry.createdAt);
+        const today = new Date();
+        setCheckedInToday(entryDate.toDateString() === today.toDateString());
+      } else {
+        setCheckedInToday(false);
+      }
 
-      const URGENT_MS = 48 * 60 * 60 * 1000;
-      const urgent = (remRes.data || [])
-        .map((r) => ({ ...r, _when: new Date(r.date).getTime() }))
-        .filter((r) => r._when >= now && r._when - now <= URGENT_MS)
-        .sort((a, b) => a._when - b._when)[0];
-      setUrgentReminder(urgent || null);
+      // ── secondary: appointments / reminders / messages ──
+      try {
+        const now = Date.now();
+        const items = [];
+        (apptRes.data || []).forEach((a) => {
+          const when = new Date(a.scheduledAt).getTime();
+          const finalized = ['completed', 'cancelled', 'missed'].includes(a.status);
+          if (!finalized && when >= now) items.push({ kind: 'appointment', when, data: a });
+        });
+        (remRes.data || []).forEach((r) => {
+          const when = new Date(r.date).getTime();
+          if (when >= now) items.push({ kind: 'reminder', when, data: r });
+        });
+        items.sort((a, b) => a.when - b.when);
+        setNextItem(items[0] || null);
 
-      const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
-      const fromNav = (msgRes.data || [])
-        .filter(
-          (m) =>
-            String(m.senderId) === String(navId) &&
-            now - new Date(m.createdAt).getTime() <= RECENT_MS,
-        )
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-      setRecentNavMessage(fromNav || null);
+        const URGENT_MS = 48 * 60 * 60 * 1000;
+        const urgent = (remRes.data || [])
+          .map((r) => ({ ...r, _when: new Date(r.date).getTime() }))
+          .filter((r) => r._when >= now && r._when - now <= URGENT_MS)
+          .sort((a, b) => a._when - b._when)[0];
+        setUrgentReminder(urgent || null);
+
+        const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+        const fromNav = (msgRes.data || [])
+          .filter(
+            (m) =>
+              String(m.senderId) === String(navId) &&
+              now - new Date(m.createdAt).getTime() <= RECENT_MS,
+          )
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        setRecentNavMessage(fromNav || null);
+      } catch {
+        setNextItem(null);
+        setUrgentReminder(null);
+        setRecentNavMessage(null);
+      }
     } catch {
       setTriage(null);
+      setCheckedInToday(false);
       setNextItem(null);
       setUrgentReminder(null);
       setRecentNavMessage(null);
@@ -129,22 +150,16 @@ export default function PatientDashboardScreen({ navigation }) {
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
   const alert = triage?.alert;
-  const isFromToday = (() => {
-    if (!alert?.createdAt) return false;
-    const created = new Date(alert.createdAt);
-    const now = new Date();
-    return created.toDateString() === now.toDateString();
-  })();
-  const severity = isFromToday ? alert?.severity || alert?.level : null;
+  const severity = alert?.severity || alert?.level || null;
 
   const status =
     severity === 'HIGH'
-      ? { face: '😞', text: 'Symptoms are high today', color: C.red }
+      ? { icon: 'sad-outline',   text: 'Symptoms are high today', color: C.red }
       : severity === 'MED'
-        ? { face: '😐', text: 'Some symptoms today', color: C.amber }
-        : severity === 'LOW'
-          ? { face: '🙂', text: 'Feeling well today', color: C.green }
-          : { face: '🙂', text: 'Tap to check in', color: C.muted };
+        ? { icon: 'remove-circle-outline', text: 'Some symptoms today', color: C.amber }
+        : severity === 'LOW' || (!severity && checkedInToday)
+          ? { icon: 'happy-outline', text: 'Feeling well today', color: C.green }
+          : { icon: 'happy-outline', text: 'Tap to check in', color: C.muted };
 
   const [activeTab, setActiveTab] = useState('Home');
 
@@ -155,18 +170,18 @@ export default function PatientDashboardScreen({ navigation }) {
   const statusHint =
     severity === 'HIGH' ? 'Please take care and rest well.' :
     severity === 'MED'  ? 'Monitor your symptoms closely.' :
-    severity === 'LOW'  ? "You're doing great, keep it up!" :
+    severity === 'LOW' || (!severity && checkedInToday) ? "You're doing great, keep it up!" :
     'Log your symptoms to get started.';
 
   const quickActions = [
     { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: '#E8F5F1', tint: '#1A6B5A', onPress: () => navigation.navigate('Symptom') },
-    { icon: '💬',                                               label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
-    { icon: '🔔',                                               label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
+    { ionIcon: 'chatbubble-outline', iconColor: '#7C3AED',       label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
+    { ionIcon: 'alarm-outline',      iconColor: '#EF4444',       label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
     // { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
     { img: require('../../assets/icons/insurance-card.png'), label: 'Insurance\nHelp',  bg: '#FEF3C7', tint: '#D97706', onPress: () => comingSoon('Insurance Help') },
     { img: require('../../assets/icons/health.png'),          label: 'My\nWellbeing',    bg: '#DCFCE7', tint: '#16A34A', onPress: () => comingSoon('My Wellbeing') },
     { img: require('../../assets/icons/book.png'),            label: 'Learn',             bg: '#EEF2FF', tint: '#4338CA', onPress: () => comingSoon('Awareness') },
-    { icon: '🤲',                                             label: 'Caregiver',         bg: '#FFEDD5',                  onPress: () => comingSoon('Caregiver') },
+    { ionIcon: 'people-outline',     iconColor: '#EA580C',       label: 'Caregiver',         bg: '#FFEDD5',                  onPress: () => comingSoon('Caregiver') },
   ];
 
   const PATIENT_TABS = [
@@ -190,7 +205,7 @@ export default function PatientDashboardScreen({ navigation }) {
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={s.greeting}>{greeting},</Text>
-            <Text style={s.name}>{user?.name || 'Patient'} 👋</Text>
+            <Text style={s.name}>{user?.name || 'Patient'}</Text>
           </View>
           <TouchableOpacity
             style={s.bellBtn}
@@ -210,25 +225,33 @@ export default function PatientDashboardScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
         >
-          <TouchableOpacity style={s.statusCard} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.92}>
+          <TouchableOpacity
+            style={s.statusCard}
+            onPress={() => (severity || checkedInToday)
+              ? navigation.navigate('WeeklyReport')
+              : navigation.navigate('Symptom')}
+            activeOpacity={0.92}
+          >
             <View style={s.statusDeco} pointerEvents="none">
-              <Text style={s.decoHeart}>💚</Text>
+              <Ionicons name="heart" size={22} color="#4CAF50" style={s.decoHeart} />
               <Text style={s.decoPlus}>+</Text>
             </View>
-            <Text style={s.statusFace}>{status.face}</Text>
+            <Ionicons name={status.icon} size={36} color={status.color} style={s.statusFace} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.statusLabel}>How you're feeling today?</Text>
               <Text style={s.statusTitle}>{status.text}</Text>
               <Text style={s.statusHint}>{statusHint}</Text>
             </View>
             <View style={s.logBtn}>
-              <Text style={s.logBtnText}>Log Symptoms ›</Text>
+              <Text style={s.logBtnText}>
+                {(severity || checkedInToday) ? 'View Report ›' : 'Log Symptoms ›'}
+              </Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={s.weeklyIconBox}>
-              <Text style={{ fontSize: 22 }}>📊</Text>
+              <Ionicons name="bar-chart-outline" size={22} color="#1A6B5A" />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.weeklyTitle}>See your weekly report</Text>
@@ -244,7 +267,7 @@ export default function PatientDashboardScreen({ navigation }) {
                 <View style={[s.quickIconBox, { backgroundColor: item.bg }]}>
                   {item.img
                     ? <Image source={item.img} style={[s.quickIconImg, item.tint && { tintColor: item.tint }]} />
-                    : <Text style={s.quickIcon}>{item.icon}</Text>}
+                    : <Ionicons name={item.ionIcon} size={24} color={item.iconColor || '#374151'} />}
                 </View>
                 <Text style={s.quickLabel}>{item.label}</Text>
               </TouchableOpacity>
@@ -257,7 +280,7 @@ export default function PatientDashboardScreen({ navigation }) {
               onPress={() => navigation.navigate('Reminders')}
               activeOpacity={0.7}
             >
-              <Text style={s.alertIcon}>⚠️</Text>
+              <Ionicons name="warning-outline" size={22} color="#B45309" style={s.alertIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={s.alertTitle}>
                   {(urgentReminder.type || 'Reminder').toUpperCase()} due {dueLabel(urgentReminder.date)}
@@ -272,7 +295,7 @@ export default function PatientDashboardScreen({ navigation }) {
               onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
               activeOpacity={0.7}
             >
-              <Text style={s.alertIcon}>💬</Text>
+              <Ionicons name="chatbubble-outline" size={22} color="#1A6B5A" style={s.alertIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={s.alertTitle}>Message from your navigator</Text>
                 <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
@@ -289,7 +312,7 @@ export default function PatientDashboardScreen({ navigation }) {
             activeOpacity={0.75}
           >
             <View style={s.navIconBox}>
-              <Text style={{ fontSize: 26 }}>🛡️</Text>
+              <Ionicons name="shield-checkmark-outline" size={26} color="#1A6B5A" />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.navTitle}>Speak to your care navigator</Text>
@@ -305,19 +328,23 @@ export default function PatientDashboardScreen({ navigation }) {
         <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
           <View style={s.checkinHeader}>
             <Text style={s.checkinTitle}>Daily Check-in</Text>
-            <Text style={s.checkinSubtitle}>How are you feeling today?</Text>
+            <Text style={s.checkinSubtitle}>
+              {(severity || checkedInToday) ? 'Checked in today' : 'How are you feeling today?'}
+            </Text>
           </View>
 
           <TouchableOpacity
             style={s.checkinCard}
-            onPress={() => navigation.navigate('Symptom')}
+            onPress={() => (severity || checkedInToday)
+              ? navigation.navigate('WeeklyReport')
+              : navigation.navigate('Symptom')}
             activeOpacity={0.88}
           >
             <View style={s.statusDeco} pointerEvents="none">
-              <Text style={s.decoHeart}>💚</Text>
+              <Ionicons name="heart" size={22} color="#4CAF50" style={s.decoHeart} />
               <Text style={s.decoPlus}>+</Text>
             </View>
-            <Text style={s.checkinFace}>{status.face}</Text>
+            <Ionicons name={status.icon} size={36} color={status.color} style={s.checkinFace} />
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={s.checkinCardLabel}>Today's status</Text>
               <Text style={s.checkinCardTitle}>{status.text}</Text>
@@ -325,15 +352,21 @@ export default function PatientDashboardScreen({ navigation }) {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={s.checkinStartBtn} onPress={() => navigation.navigate('Symptom')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[s.checkinStartBtn, (severity || checkedInToday) && s.checkinUpdateBtn]}
+            onPress={() => navigation.navigate('Symptom')}
+            activeOpacity={0.85}
+          >
             <Ionicons name="pulse" size={20} color="#fff" />
-            <Text style={s.checkinStartText}>Start Today's Check-in</Text>
+            <Text style={s.checkinStartText}>
+              {(severity || checkedInToday) ? 'Update Check-in' : "Start Today's Check-in"}
+            </Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={s.weeklyIconBox}>
-              <Text style={{ fontSize: 22 }}>📊</Text>
+              <Ionicons name="bar-chart-outline" size={22} color="#1A6B5A" />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.weeklyTitle}>See your weekly report</Text>
@@ -406,7 +439,7 @@ export default function PatientDashboardScreen({ navigation }) {
       )}
 
       {/* ── BOTTOM TAB BAR ── */}
-      <View style={s.tabBar}>
+      <SafeAreaView edges={['bottom']} style={s.tabBar}>
         {PATIENT_TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -427,7 +460,7 @@ export default function PatientDashboardScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -457,9 +490,9 @@ function NextUpCard({ nextItem, onPress }) {
   if (isAppt) {
     if (data.doctor) subtitleParts.push(data.doctor);
     const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    subtitleParts.push(data.location ? `🏥 ${data.location} · ${time}` : time);
+    subtitleParts.push(data.location ? `${data.location} · ${time}` : time);
   } else {
-    subtitleParts.push(`🔔 ${(data.type || 'Reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`);
+    subtitleParts.push(`${(data.type || 'Reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`);
   }
 
   return (
@@ -693,8 +726,8 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: C.border,
-    paddingBottom: 16,
     paddingTop: 10,
+    paddingBottom: 6,
   },
   tabItem: { flex: 1, alignItems: 'center', gap: 3 },
   tabLabel: { fontSize: 10, color: C.muted, fontWeight: '500' },
@@ -753,4 +786,8 @@ const s = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   checkinStartText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  checkinUpdateBtn: {
+    backgroundColor: C.tealDark,
+    shadowOpacity: 0.15,
+  },
 });

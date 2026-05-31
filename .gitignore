@@ -4,4 +4,21 @@ dist/
 web-build/
 *.log
 .DS_Store
+
+# Environment files — never commit
 .env
+.env.*
+!.env.example
+
+# Secrets & credentials — must never enter version control.
+# Rotate immediately if any of these were ever pushed.
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist
+android/app/google-services.json
+*.keystore
+!android/app/debug.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision

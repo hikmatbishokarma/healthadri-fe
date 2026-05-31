@@ -164,10 +164,10 @@ export default function LoginScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
         <ScrollView contentContainerStyle={s.roleScroll} showsVerticalScrollIndicator={false}>
           <View style={s.leafBL} pointerEvents="none">
-            <Text style={s.leafText}>🌿</Text>
+            <Ionicons name="leaf-outline" size={48} color="#A7D7C5" style={s.leafText} />
           </View>
           <View style={s.leafBR} pointerEvents="none">
-            <Text style={[s.leafText, { transform: [{ scaleX: -1 }] }]}>🌿</Text>
+            <Ionicons name="leaf-outline" size={48} color="#A7D7C5" style={[s.leafText, { transform: [{ scaleX: -1 }] }]} />
           </View>
 
           <View style={s.logoArea}>
@@ -678,8 +678,6 @@ const s = StyleSheet.create({
     fontWeight: '500',
     color: '#1A3C34',
     letterSpacing: 0.5,
-    // @ts-ignore — web only
-    outline: 'none',
   },
   phoneCheckMark: {
     paddingRight: 16,

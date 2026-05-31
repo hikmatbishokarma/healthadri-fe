@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMe } from '../services/api';
+import { getToken, setToken, clearToken } from '../services/storage/tokenStorage';
 
 const AuthContext = createContext(null);
 
@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
 
   const loadUser = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await getToken();
       if (!token) {
         setUser(null);
         return;
@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
       const res = await getMe();
       setUser(res.data);
     } catch (err) {
-      await AsyncStorage.removeItem('token');
+      await clearToken();
       setUser(null);
     } finally {
       setLoading(false);
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   }, [loadUser]);
 
   const signIn = async (token, userData) => {
-    await AsyncStorage.setItem('token', token);
+    await setToken(token);
     setUser(userData);
     // Refresh from /users/me to get full profile fields
     try {
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
-    await AsyncStorage.removeItem('token');
+    await clearToken();
     setUser(null);
   };
 

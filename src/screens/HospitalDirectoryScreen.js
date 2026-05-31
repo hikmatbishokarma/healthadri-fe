@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import Illustration from '../components/Illustration';
 import {
   View,
@@ -74,7 +75,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Text style={styles.backIcon}>←</Text>
+              <Ionicons name="chevron-back" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Find a Hospital</Text>
             <View style={styles.langBadge}>
@@ -82,7 +83,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
             </View>
           </View>
           <View style={styles.searchBar}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <Ionicons name="search-outline" size={16} color="#94A3B8" style={styles.searchIcon} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -160,12 +161,12 @@ function HospitalCard({ hospital }) {
   return (
     <View style={styles.hospCard}>
       <View style={styles.hospLogo}>
-        <Text style={{ fontSize: 22 }}>🏥</Text>
+        <Ionicons name="business-outline" size={22} color="#1A6B5A" />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.hospName}>{hospital.name}</Text>
         <Text style={styles.hospLoc}>
-          📍 {hospital.city}
+          {hospital.city}
           {hospital.type === 'government' ? ' · Government' : ''}
           {hospital.address ? ` · ${hospital.address}` : ''}
         </Text>
@@ -176,8 +177,9 @@ function HospitalCard({ hospital }) {
             </View>
           ))}
           {hospital.acceptsAarogyasri && (
-            <View style={[styles.tag, { backgroundColor: C.bluePale }]}>
-              <Text style={[styles.tagText, { color: C.blue }]}>Aarogyasri ✓</Text>
+            <View style={[styles.tag, { backgroundColor: C.bluePale, flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+              <Ionicons name="checkmark-circle" size={10} color={C.blue} />
+              <Text style={[styles.tagText, { color: C.blue }]}>Aarogyasri</Text>
             </View>
           )}
         </View>

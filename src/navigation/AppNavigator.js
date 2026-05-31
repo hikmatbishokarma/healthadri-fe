@@ -22,9 +22,10 @@ import CaregiverDashboardScreen from '../screens/CaregiverDashboardScreen';
 import CaregiverScreen from '../screens/CaregiverScreen';
 import AddCaregiverScreen from '../screens/AddCaregiverScreen';
 import ConnectCaregiverScreen from '../screens/ConnectCaregiverScreen';
+import MedicationAlarmScreen from '../screens/MedicationAlarmScreen';
 
 const Stack = createNativeStackNavigator();
-const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef();
 
 export default function AppNavigator() {
   const { user, loading } = useAuth();
@@ -153,6 +154,11 @@ export default function AppNavigator() {
               name="AiExplainer"
               component={AiExplainerScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="MedicationAlarm"
+              component={MedicationAlarmScreen}
+              options={{ headerShown: false, presentation: 'modal' }}
             />
           </>
         )}

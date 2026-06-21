@@ -12,7 +12,12 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_USE_FIREBASE": "true",
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-PROD-API-URL",
+        "EXPO_PUBLIC_WEB_URL": "https://healthadri.com"
+      }
     }
   },
   "submit": {

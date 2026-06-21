@@ -245,7 +245,7 @@ const s = StyleSheet.create({
   // Info
   infoBox: {
     backgroundColor: C.primaryLight, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#C6E8DC',
+    borderWidth: 1, borderColor: '#CFE6F5',
   },
   infoText: { fontSize: 13, color: C.primary, lineHeight: 20, textAlign: 'center' },
 });

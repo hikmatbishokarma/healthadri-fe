@@ -18,9 +18,9 @@ import { useAuth } from '../context/AuthContext';
 
 const POLL_INTERVAL = 4000;
 
-// Theme tokens per role — caregiver gets purple, patient gets forest green
+// Theme tokens per role — caregiver gets purple, patient gets brand blue
 const THEME = {
-  patient:   { header: '#1C3D2E', avatarBg: '#3D7A5C', ownBubble: '#1C3D2E', sendDisabled: '#9FD4BE' },
+  patient:   { header: '#11607F', avatarBg: '#1B8FBF', ownBubble: '#11607F', sendDisabled: '#9FCFE8' },
   caregiver: { header: '#2D2060', avatarBg: '#534AB7', ownBubble: '#2D2060', sendDisabled: '#B0ACDF' },
 };
 
@@ -29,8 +29,8 @@ function getBubbleStyle(senderType, isMe, theme) {
   if (senderType === 'bot')
     return { bg: '#EDF4FF', text: '#0C447C', align: 'flex-start', extraStyle: s.bubbleIn, radius: { borderBottomLeftRadius: 3 } };
   if (senderType === 'navigator')
-    // Spec §12: navigator reply = light green tint, not plain white
-    return { bg: '#E8F4EE', text: '#1C3D2E', align: 'flex-start', extraStyle: s.bubbleInNav, radius: { borderBottomLeftRadius: 3 } };
+    // Spec §12: navigator reply = light brand tint, not plain white
+    return { bg: '#E6F4FB', text: '#11607F', align: 'flex-start', extraStyle: s.bubbleInNav, radius: { borderBottomLeftRadius: 3 } };
   if (isMe)
     return { bg: theme.ownBubble, text: '#fff', align: 'flex-end', extraStyle: null, radius: { borderBottomRightRadius: 3 } };
   // caregiver message seen in patient view — spec §12: #F3F1FE / border #CECBF6
@@ -138,7 +138,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
     );
   }
 
-  const onlineDot = navigatorOnline ? '#6FCFA0' : '#F5A623';
+  const onlineDot = navigatorOnline ? '#29ABE2' : '#F5A623';
 
   return (
     <SafeAreaView style={s.root} edges={embedded ? [] : ['top']}>
@@ -271,7 +271,7 @@ const s = StyleSheet.create({
   hdr:           { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
   backBtn:       { padding: 2 },
   hdrAvatar:     { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  hdrAvatarText: { color: '#E8F4EE', fontSize: 11, fontWeight: '700' },
+  hdrAvatarText: { color: '#E6F4FB', fontSize: 11, fontWeight: '700' },
   hdrName:       { fontSize: 14, fontWeight: '600', color: '#fff' },
   hdrSub:        { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
   statusDot:     { width: 8, height: 8, borderRadius: 4 },
@@ -302,7 +302,7 @@ const s = StyleSheet.create({
 
   // Incoming bubble variants
   bubbleIn:    { borderWidth: 0.5, borderColor: '#E8E5E0' },
-  bubbleInNav: { borderWidth: 0.5, borderColor: '#9FE1CB' },
+  bubbleInNav: { borderWidth: 0.5, borderColor: '#BBDCEF' },
   bubbleInCg:  { borderWidth: 0.5, borderColor: '#CECBF6' },
 
   // Bot icon row inside bubble

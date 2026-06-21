@@ -20,7 +20,7 @@ const C = {
   card:    '#252540',
   border:  '#2E2E4A',
   teal:    colors.primary,
-  tealBright: '#22D3A8',
+  tealBright: '#29ABE2',
   red:     '#EF4444',
   amber:   '#F59E0B',
   green:   '#22C55E',

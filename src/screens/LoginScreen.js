@@ -11,14 +11,21 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import LogoMark from '../../assets/logo.svg';
 import { caregiverLink, firebaseVerify, sendOtp, verifyOtp } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
 const USE_FIREBASE = process.env.EXPO_PUBLIC_USE_FIREBASE === 'true';
+
+// Public website base URL — set via EXPO_PUBLIC_WEB_URL (.env / eas.json).
+const WEB_BASE = process.env.EXPO_PUBLIC_WEB_URL;
+const TERMS_URL = `${WEB_BASE}/terms`;
+const PRIVACY_URL = `${WEB_BASE}/privacy`;
 
 // Only import Firebase when the flag is on — avoids crashes in Expo Go / static-OTP mode
 let firebaseAuth = null;
@@ -165,20 +172,14 @@ export default function LoginScreen() {
         <StatusBar barStyle="dark-content" backgroundColor={colors.primarySurface} />
         <ScrollView contentContainerStyle={s.roleScroll} showsVerticalScrollIndicator={false}>
           <View style={s.leafBL} pointerEvents="none">
-            <Ionicons name="leaf-outline" size={48} color="#A7D7C5" style={s.leafText} />
+            <Ionicons name="leaf-outline" size={48} color="#A9D6EE" style={s.leafText} />
           </View>
           <View style={s.leafBR} pointerEvents="none">
-            <Ionicons name="leaf-outline" size={48} color="#A7D7C5" style={[s.leafText, { transform: [{ scaleX: -1 }] }]} />
+            <Ionicons name="leaf-outline" size={48} color="#A9D6EE" style={[s.leafText, { transform: [{ scaleX: -1 }] }]} />
           </View>
 
           <View style={s.logoArea}>
-            <View style={s.logoMark}>
-              <View style={s.crossH} />
-              <View style={s.crossV} />
-              <View style={s.heartBadge}>
-                <Ionicons name="heart" size={16} color="#F5A623" />
-              </View>
-            </View>
+            <LogoMark width={80} height={80} style={s.logoMark} />
             <Text style={s.logoText}>
               Health<Text style={s.logoAccent}>adri</Text>
             </Text>
@@ -223,9 +224,9 @@ export default function LoginScreen() {
 
           <Text style={s.termsLight}>
             By continuing, you agree to our{' '}
-            <Text style={s.termsLink}>Terms of Use</Text>
+            <Text style={s.termsLink} onPress={() => Linking.openURL(TERMS_URL)}>Terms of Use</Text>
             {' '}and{' '}
-            <Text style={s.termsLink}>Privacy Policy</Text>
+            <Text style={s.termsLink} onPress={() => Linking.openURL(PRIVACY_URL)}>Privacy Policy</Text>
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -533,16 +534,10 @@ const s = StyleSheet.create({
   leafText: { fontSize: 90, opacity: 0.13 },
 
   logoArea: { alignItems: 'center', marginBottom: 28, marginTop: 8 },
-  logoMark: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  crossH: { position: 'absolute', width: 54, height: 14, borderRadius: 7, backgroundColor: colors.primary },
-  crossV: { position: 'absolute', width: 14, height: 54, borderRadius: 7, backgroundColor: colors.primary },
-  heartBadge: {
-    position: 'absolute', bottom: 10, right: 10,
-    backgroundColor: '#fff', borderRadius: 10, padding: 2,
-  },
-  logoText: { fontSize: 30, fontWeight: '800', color: colors.primaryDark },
-  logoAccent: { color: '#F5A623' },
-  logoTagline: { fontSize: 13, color: '#6B9E90', marginTop: 4 },
+  logoMark: { marginBottom: 14 },
+  logoText: { fontSize: 30, fontWeight: '800', color: colors.textBody },
+  logoAccent: { color: colors.accentWarm },
+  logoTagline: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
 
   welcomeTitle: { fontSize: 22, fontWeight: '700', color: colors.primaryDark, textAlign: 'center', marginBottom: 6 },
   welcomeSub: { fontSize: 13, color: '#7A9E96', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
@@ -571,7 +566,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   securityTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
-  securityDesc: { fontSize: 11, color: '#6B9E90', lineHeight: 16 },
+  securityDesc: { fontSize: 11, color: colors.textSecondary, lineHeight: 16 },
   termsLight: { fontSize: 11, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
   termsLink: { color: colors.primary, fontWeight: '600' },
 
@@ -741,7 +736,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
   },
   secureTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
-  secureDesc: { fontSize: 11, color: '#6B9E90' },
+  secureDesc: { fontSize: 11, color: colors.textSecondary },
 
   // Primary button
   primaryBtn: {
@@ -778,8 +773,8 @@ const s = StyleSheet.create({
 
   // Step pill
   stepPill: {
-    borderWidth: 1, borderColor: '#C5E3D8',
+    borderWidth: 1, borderColor: '#CFE6F5',
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6,
   },
-  stepPillText: { fontSize: 12, color: '#6B9E90', fontWeight: '500' },
+  stepPillText: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
 });

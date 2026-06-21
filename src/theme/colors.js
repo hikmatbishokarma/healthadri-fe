@@ -7,15 +7,15 @@
 
 // Raw palette — the actual hues. Prefer the semantic names below in components.
 const palette = {
-  // Brand greens
-  green900: '#0D4035', // darkest — splash, dark backgrounds
-  green800: '#1A3C34', // dark green — headings on light surfaces
-  green600: '#1A6B5A', // primary brand
-  green100: '#E8F5F1', // light tint — selected/brand-bg surfaces
-  green50: '#F2FAF6', // faint green page background
+  // Brand blues — from the Healthadri pinwheel logo (cyan family). Deepened from
+  // the raw logo cyan so white text on primary surfaces keeps enough contrast.
+  brandBlue900: '#0C4A66', // darkest — splash, dark backgrounds
+  brandBlue800: '#11607F', // dark blue — headings on light surfaces
+  brandBlue600: '#1B8FBF', // primary brand
+  brandBlue100: '#E6F4FB', // light tint — selected/brand-bg surfaces
+  brandBlue50: '#F1F9FD', // faint blue page background
 
   // Brand accents — from the Healthadri pinwheel logo (cyan + yellow).
-  // Green stays the primary; these are for highlights/accents only.
   cyan500: '#29ABE2', // logo cyan
   cyan100: '#E8F6FD', // light cyan tint
   yellow500: '#F7B500', // logo yellow
@@ -50,11 +50,11 @@ const palette = {
 
 export const colors = {
   // Brand
-  primary: palette.green600,
-  primaryDark: palette.green800,
-  primaryDarkest: palette.green900,
-  primaryTint: palette.green100,
-  primarySurface: palette.green50,
+  primary: palette.brandBlue600,
+  primaryDark: palette.brandBlue800,
+  primaryDarkest: palette.brandBlue900,
+  primaryTint: palette.brandBlue100,
+  primarySurface: palette.brandBlue50,
 
   // Brand accents (logo cyan + yellow)
   accent: palette.cyan500,
@@ -85,7 +85,7 @@ export const colors = {
   surfaceSubtle: palette.slate100,
 
   // Text
-  textPrimary: palette.green800,
+  textPrimary: palette.brandBlue800,
   textBody: palette.navy,
   textSecondary: palette.slate500,
   textMuted: palette.slate400,
@@ -102,12 +102,12 @@ export const colors = {
   overlay: 'rgba(0,0,0,0.5)',
   transparent: 'transparent',
 
-  // Brand-tinted shadows / overlays — kept in sync with the primary green so a
+  // Brand-tinted shadows / overlays — kept in sync with the primary blue so a
   // re-theme updates them too. (RN style values, used in boxShadow/backgroundColor.)
-  primaryShadowSoft: 'rgba(26,107,90,0.10)', // subtle elevation
-  primaryShadowStrong: 'rgba(26,107,90,0.30)', // floating action button
-  primaryOverlay: 'rgba(26,107,90,0.12)', // faint brand background wash
-  primaryDarkShadow: 'rgba(13,64,53,0.08)', // soft shadow on light cards
+  primaryShadowSoft: 'rgba(27,143,191,0.10)', // subtle elevation
+  primaryShadowStrong: 'rgba(27,143,191,0.30)', // floating action button
+  primaryOverlay: 'rgba(27,143,191,0.12)', // faint brand background wash
+  primaryDarkShadow: 'rgba(12,74,102,0.08)', // soft shadow on light cards
 };
 
 export { palette };

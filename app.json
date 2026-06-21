@@ -5,7 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0D4035"
     },
@@ -13,7 +15,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/bot-icon.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#0D4035"
         }
       ],
@@ -26,7 +28,8 @@
     "android": {
       "package": "com.healthadri.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0D4035"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       },
       "googleServicesFile": "./google-services.json"
     },

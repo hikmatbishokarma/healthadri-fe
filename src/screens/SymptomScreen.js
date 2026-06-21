@@ -14,11 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSymptoms, submitSymptomEntry, getLatestSymptomEntry } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import FaceScale from '../components/FaceScale';
+import { colors } from '../theme/colors';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
+  tealPale: colors.primaryTint,
   bg: '#F4F6F8',
   card: '#FFFFFF',
   text: '#1A1A2E',

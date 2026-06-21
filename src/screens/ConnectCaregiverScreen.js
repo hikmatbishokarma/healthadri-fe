@@ -7,11 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { generateInvite } from '../services/api';
 import Illustration from '../components/Illustration';
+import { colors } from '../theme/colors';
 
 const C = {
-  primary: '#1A6B5A',
-  primaryLight: '#E8F5F1',
-  primaryDark: '#0D4035',
+  primary: colors.primary,
+  primaryLight: colors.primaryTint,
+  primaryDark: colors.primaryDarkest,
   text: '#0F172A',
   textSub: '#64748B',
   textMuted: '#94A3B8',

@@ -14,6 +14,13 @@ const palette = {
   green100: '#E8F5F1', // light tint — selected/brand-bg surfaces
   green50: '#F2FAF6', // faint green page background
 
+  // Brand accents — from the Healthadri pinwheel logo (cyan + yellow).
+  // Green stays the primary; these are for highlights/accents only.
+  cyan500: '#29ABE2', // logo cyan
+  cyan100: '#E8F6FD', // light cyan tint
+  yellow500: '#F7B500', // logo yellow
+  yellow100: '#FEF6E0', // light yellow tint
+
   // Status / semantic hues
   red500: '#EF4444',
   red100: '#FEE2E2',
@@ -48,6 +55,12 @@ export const colors = {
   primaryDarkest: palette.green900,
   primaryTint: palette.green100,
   primarySurface: palette.green50,
+
+  // Brand accents (logo cyan + yellow)
+  accent: palette.cyan500,
+  accentTint: palette.cyan100,
+  accentWarm: palette.yellow500,
+  accentWarmTint: palette.yellow100,
 
   // Accents
   accentBlue: palette.blue600,
@@ -88,6 +101,13 @@ export const colors = {
   black: palette.black,
   overlay: 'rgba(0,0,0,0.5)',
   transparent: 'transparent',
+
+  // Brand-tinted shadows / overlays — kept in sync with the primary green so a
+  // re-theme updates them too. (RN style values, used in boxShadow/backgroundColor.)
+  primaryShadowSoft: 'rgba(26,107,90,0.10)', // subtle elevation
+  primaryShadowStrong: 'rgba(26,107,90,0.30)', // floating action button
+  primaryOverlay: 'rgba(26,107,90,0.12)', // faint brand background wash
+  primaryDarkShadow: 'rgba(13,64,53,0.08)', // soft shadow on light cards
 };
 
 export { palette };

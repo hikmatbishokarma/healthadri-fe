@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors } from '../theme/colors';
 
 const C = {
   text: '#1A1A2E',
   muted: '#64748B',
   border: '#E2E8F0',
-  selected: '#1A6B5A',
-  selectedBg: '#E8F5F1',
+  selected: colors.primary,
+  selectedBg: colors.primaryTint,
 };
 
 export default function ChipSelect({ value, options, onChange }) {

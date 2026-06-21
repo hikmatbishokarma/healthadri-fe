@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getHospitals } from '../services/api';
+import { colors } from '../theme/colors';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
+  tealPale: colors.primaryTint,
   bluePale: '#EFF6FF',
   blue: '#2563EB',
   bg: '#F4F6F8',
@@ -161,7 +162,7 @@ function HospitalCard({ hospital }) {
   return (
     <View style={styles.hospCard}>
       <View style={styles.hospLogo}>
-        <Ionicons name="business-outline" size={22} color="#1A6B5A" />
+        <Ionicons name="business-outline" size={22} color={colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.hospName}>{hospital.name}</Text>

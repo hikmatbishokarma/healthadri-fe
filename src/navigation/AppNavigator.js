@@ -23,6 +23,7 @@ import CaregiverScreen from '../screens/CaregiverScreen';
 import AddCaregiverScreen from '../screens/AddCaregiverScreen';
 import ConnectCaregiverScreen from '../screens/ConnectCaregiverScreen';
 import MedicationAlarmScreen from '../screens/MedicationAlarmScreen';
+import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -34,7 +35,7 @@ export default function AppNavigator() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1A6B5A" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -63,7 +64,7 @@ export default function AppNavigator() {
       >
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: '#1A6B5A' },
+          headerStyle: { backgroundColor: colors.primary },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700' },
         }}
@@ -179,6 +180,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0D4035',
+    backgroundColor: colors.primaryDarkest,
   },
 });

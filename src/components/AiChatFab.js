@@ -1,5 +1,6 @@
 import { Image, TouchableOpacity, StyleSheet, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/colors';
 
 const BOT_ICON = require('../../assets/bot-icon.png');
 
@@ -36,13 +37,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#1A6B5A',
+        shadowColor: colors.primary,
         shadowOpacity: 0.3,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
       },
       android: { elevation: 10 },
-      web: { boxShadow: '0 4px 20px rgba(26,107,90,0.3)' },
+      web: { boxShadow: `0 4px 20px ${colors.primaryShadowStrong}` },
     }),
   },
   icon: {

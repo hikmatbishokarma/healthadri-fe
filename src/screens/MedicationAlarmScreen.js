@@ -13,12 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCareReminders, respondReminder } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const C = {
   bg:      '#1A1A2E',
   card:    '#252540',
   border:  '#2E2E4A',
-  teal:    '#1A6B5A',
+  teal:    colors.primary,
   tealBright: '#22D3A8',
   red:     '#EF4444',
   amber:   '#F59E0B',

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getCaregiverPatient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -32,8 +33,8 @@ const C = {
   red: '#DC2626',
   redBg: '#FEF2F2',
   redBorder: '#FECACA',
-  teal: '#1A6B5A',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealPale: colors.primaryTint,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ function Header({ patient, onBell }) {
         style={s.bellBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Ionicons name="notifications-outline" size={22} color="#1A3C34" />
+        <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
       </TouchableOpacity>
     </View>
   );

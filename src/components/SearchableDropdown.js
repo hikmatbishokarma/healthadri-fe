@@ -8,9 +8,10 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { colors } from '../theme/colors';
 
 const C = {
-  primary: '#1A6B5A',
+  primary: colors.primary,
   text: '#0F172A',
   textSub: '#475569',
   textMuted: '#94A3B8',

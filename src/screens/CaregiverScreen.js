@@ -8,10 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/api';
 import Illustration from '../components/Illustration';
+import { colors } from '../theme/colors';
 
 const C = {
-  primary: '#1A6B5A',
-  primaryLight: '#E8F5F1',
+  primary: colors.primary,
+  primaryLight: colors.primaryTint,
   text: '#0F172A',
   textSub: '#64748B',
   textMuted: '#94A3B8',

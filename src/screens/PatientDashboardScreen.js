@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import RemindersScreen from './RemindersScreen';
 import ChatScreen from './ChatScreen';
+import { colors } from '../theme/colors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -47,9 +48,9 @@ function timeGreeting() {
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
+  tealPale: colors.primaryTint,
   tealMid: '#B2D8CF',
   red: '#E53935',
   redPale: '#FEE2E2',
@@ -174,7 +175,7 @@ export default function PatientDashboardScreen({ navigation }) {
     'Log your symptoms to get started.';
 
   const quickActions = [
-    { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: '#E8F5F1', tint: '#1A6B5A', onPress: () => navigation.navigate('Symptom') },
+    { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: colors.primaryTint, tint: colors.primary, onPress: () => navigation.navigate('Symptom') },
     { ionIcon: 'chatbubble-outline', iconColor: '#7C3AED',       label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
     { ionIcon: 'alarm-outline',      iconColor: '#EF4444',       label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
     // { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
@@ -212,7 +213,7 @@ export default function PatientDashboardScreen({ navigation }) {
             onPress={() => Alert.alert('Notifications', 'No new notifications')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="notifications-outline" size={22} color="#1A3C34" />
+            <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -251,7 +252,7 @@ export default function PatientDashboardScreen({ navigation }) {
 
           <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={s.weeklyIconBox}>
-              <Ionicons name="bar-chart-outline" size={22} color="#1A6B5A" />
+              <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.weeklyTitle}>See your weekly report</Text>
@@ -295,7 +296,7 @@ export default function PatientDashboardScreen({ navigation }) {
               onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
               activeOpacity={0.7}
             >
-              <Ionicons name="chatbubble-outline" size={22} color="#1A6B5A" style={s.alertIcon} />
+              <Ionicons name="chatbubble-outline" size={22} color={colors.primary} style={s.alertIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={s.alertTitle}>Message from your navigator</Text>
                 <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
@@ -312,7 +313,7 @@ export default function PatientDashboardScreen({ navigation }) {
             activeOpacity={0.75}
           >
             <View style={s.navIconBox}>
-              <Ionicons name="shield-checkmark-outline" size={26} color="#1A6B5A" />
+              <Ionicons name="shield-checkmark-outline" size={26} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.navTitle}>Speak to your care navigator</Text>
@@ -366,7 +367,7 @@ export default function PatientDashboardScreen({ navigation }) {
 
           <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={s.weeklyIconBox}>
-              <Ionicons name="bar-chart-outline" size={22} color="#1A6B5A" />
+              <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.weeklyTitle}>See your weekly report</Text>
@@ -554,7 +555,7 @@ const s = StyleSheet.create({
     position: 'absolute',
     fontSize: 32,
     fontWeight: '900',
-    color: '#1A6B5A',
+    color: colors.primary,
     opacity: 0.25,
     top: 20,
     right: 18,
@@ -709,7 +710,7 @@ const s = StyleSheet.create({
   },
   navIconBox: {
     width: 52, height: 52, borderRadius: 12,
-    backgroundColor: 'rgba(26,107,90,0.15)',
+    backgroundColor: colors.primaryOverlay,
     alignItems: 'center', justifyContent: 'center',
   },
   navTitle: { fontSize: 14, fontWeight: '700', color: C.teal, marginBottom: 3 },

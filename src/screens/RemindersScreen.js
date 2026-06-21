@@ -24,11 +24,12 @@ import {
   respondReminder,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
+  tealPale: colors.primaryTint,
   purple: '#7C3AED',
   purplePale: '#F5F3FF',
   blue: '#2563EB',

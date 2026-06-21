@@ -13,10 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getWeeklyReport } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
   bg: '#F4F6F8',
   card: '#FFFFFF',
   text: '#1A1A2E',

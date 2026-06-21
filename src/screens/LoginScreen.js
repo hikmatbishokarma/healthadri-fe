@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { caregiverLink, firebaseVerify, sendOtp, verifyOtp } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const USE_FIREBASE = process.env.EXPO_PUBLIC_USE_FIREBASE === 'true';
 
@@ -30,8 +31,8 @@ const ROLES = [
     key: 'patient',
     label: 'Patient',
     desc: 'Track my cancer care journey',
-    color: '#1A6B5A',
-    bg: '#E4F4EE',
+    color: colors.primary,
+    bg: colors.primaryTint,
     icon: 'fitness-outline',
   },
   {
@@ -161,7 +162,7 @@ export default function LoginScreen() {
   if (step === 'role') {
     return (
       <SafeAreaView style={s.light}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.primarySurface} />
         <ScrollView contentContainerStyle={s.roleScroll} showsVerticalScrollIndicator={false}>
           <View style={s.leafBL} pointerEvents="none">
             <Ionicons name="leaf-outline" size={48} color="#A7D7C5" style={s.leafText} />
@@ -212,7 +213,7 @@ export default function LoginScreen() {
 
           <View style={s.securityCard}>
             <View style={s.securityIconWrap}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#1A6B5A" />
+              <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.securityTitle}>Your data is safe and secure</Text>
@@ -235,22 +236,22 @@ export default function LoginScreen() {
   if (step === 'phone') {
     return (
       <SafeAreaView style={s.light}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.primarySurface} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <TouchableOpacity style={s.backBtn} onPress={() => { setStep('role'); setPhone(''); }}>
-            <Ionicons name="chevron-back" size={20} color="#1A3C34" />
+            <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
           </TouchableOpacity>
 
           <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
             {/* Illustration */}
             <View style={s.illustrationWrap}>
               <View style={s.illustrationBlob} />
-              <Ionicons name="phone-portrait-outline" size={76} color="#1A6B5A" />
+              <Ionicons name="phone-portrait-outline" size={76} color={colors.primary} />
               <View style={s.shieldBadge}>
-                <Ionicons name="shield-checkmark" size={34} color="#1A6B5A" />
+                <Ionicons name="shield-checkmark" size={34} color={colors.primary} />
               </View>
               <Text style={[s.plusDeco, { top: 12, left: 14 }]}>+</Text>
               <Text style={[s.plusDeco, { top: 4, right: 18 }]}>+</Text>
@@ -282,13 +283,13 @@ export default function LoginScreen() {
                 maxLength={10}
                 autoFocus
                 underlineColorAndroid="transparent"
-                selectionColor="#1A6B5A"
+                selectionColor={colors.primary}
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
               />
               {phone.length === 10 && (
                 <View style={s.phoneCheckMark}>
-                  <Ionicons name="checkmark-circle" size={20} color="#1A6B5A" />
+                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                 </View>
               )}
             </View>
@@ -302,7 +303,7 @@ export default function LoginScreen() {
                   <View style={{ width: 34 }} />
                   <Text style={s.primaryBtnText}>Send OTP</Text>
                   <View style={s.btnArrow}>
-                    <Ionicons name="arrow-forward" size={16} color="#1A6B5A" />
+                    <Ionicons name="arrow-forward" size={16} color={colors.primary} />
                   </View>
                 </>
               )}
@@ -346,13 +347,13 @@ export default function LoginScreen() {
 
     return (
       <SafeAreaView style={s.light}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.primarySurface} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <TouchableOpacity style={s.backBtn} onPress={() => { setStep('phone'); setOtp(''); }}>
-            <Ionicons name="chevron-back" size={20} color="#1A3C34" />
+            <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
           </TouchableOpacity>
 
           <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
@@ -360,7 +361,7 @@ export default function LoginScreen() {
             <View style={s.illustrationWrap}>
               <View style={s.illustrationBlob} />
               <View style={s.shieldIconWrap}>
-                <Ionicons name="shield" size={90} color="#1A6B5A" />
+                <Ionicons name="shield" size={90} color={colors.primary} />
                 <View style={s.lockOnShield}>
                   <Ionicons name="lock-closed" size={30} color="#fff" />
                 </View>
@@ -398,7 +399,7 @@ export default function LoginScreen() {
                   textAlign="center"
                   autoFocus={i === 0}
                   underlineColorAndroid="transparent"
-                  selectionColor="#1A6B5A"
+                  selectionColor={colors.primary}
                 />
               ))}
             </View>
@@ -428,7 +429,7 @@ export default function LoginScreen() {
                   <View style={{ width: 34 }} />
                   <Text style={s.primaryBtnText}>Verify & Continue</Text>
                   <View style={s.btnArrow}>
-                    <Ionicons name="arrow-forward" size={16} color="#1A6B5A" />
+                    <Ionicons name="arrow-forward" size={16} color={colors.primary} />
                   </View>
                 </>
               )}
@@ -437,7 +438,7 @@ export default function LoginScreen() {
             {/* Secure login card */}
             <View style={s.secureCard}>
               <View style={s.secureIconWrap}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#1A6B5A" />
+                <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
               </View>
               <View>
                 <Text style={s.secureTitle}>Secure login</Text>
@@ -453,7 +454,7 @@ export default function LoginScreen() {
   // ── Invite step (new caregiver) ─────────────────────────────────────────────
   return (
     <SafeAreaView style={s.light}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2FAF6" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.primarySurface} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -462,15 +463,15 @@ export default function LoginScreen() {
           style={s.backBtn}
           onPress={() => { setStep('otp'); setInviteCode(''); setTempToken(''); }}
         >
-          <Ionicons name="chevron-back" size={20} color="#1A3C34" />
+          <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
         </TouchableOpacity>
 
         <ScrollView contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false}>
           <View style={s.illustrationWrap}>
             <View style={s.illustrationBlob} />
-            <Ionicons name="link-outline" size={68} color="#1A6B5A" />
+            <Ionicons name="link-outline" size={68} color={colors.primary} />
             <View style={s.shieldBadge}>
-              <Ionicons name="heart-outline" size={28} color="#1A6B5A" />
+              <Ionicons name="heart-outline" size={28} color={colors.primary} />
             </View>
           </View>
 
@@ -494,7 +495,7 @@ export default function LoginScreen() {
               maxLength={7}
               autoFocus
               underlineColorAndroid="transparent"
-              selectionColor="#1A6B5A"
+              selectionColor={colors.primary}
             />
           </View>
 
@@ -506,7 +507,7 @@ export default function LoginScreen() {
                 <View style={{ width: 34 }} />
                 <Text style={s.primaryBtnText}>Link & Continue</Text>
                 <View style={s.btnArrow}>
-                  <Ionicons name="arrow-forward" size={16} color="#1A6B5A" />
+                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
                 </View>
               </>
             )}
@@ -523,7 +524,7 @@ export default function LoginScreen() {
 }
 
 const s = StyleSheet.create({
-  light: { flex: 1, backgroundColor: '#F2FAF6' },
+  light: { flex: 1, backgroundColor: colors.primarySurface },
 
   // ── Role step ───────────────────────────────────────────────────────────────
   roleScroll: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
@@ -533,24 +534,24 @@ const s = StyleSheet.create({
 
   logoArea: { alignItems: 'center', marginBottom: 28, marginTop: 8 },
   logoMark: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  crossH: { position: 'absolute', width: 54, height: 14, borderRadius: 7, backgroundColor: '#1A6B5A' },
-  crossV: { position: 'absolute', width: 14, height: 54, borderRadius: 7, backgroundColor: '#1A6B5A' },
+  crossH: { position: 'absolute', width: 54, height: 14, borderRadius: 7, backgroundColor: colors.primary },
+  crossV: { position: 'absolute', width: 14, height: 54, borderRadius: 7, backgroundColor: colors.primary },
   heartBadge: {
     position: 'absolute', bottom: 10, right: 10,
     backgroundColor: '#fff', borderRadius: 10, padding: 2,
   },
-  logoText: { fontSize: 30, fontWeight: '800', color: '#1A3C34' },
+  logoText: { fontSize: 30, fontWeight: '800', color: colors.primaryDark },
   logoAccent: { color: '#F5A623' },
   logoTagline: { fontSize: 13, color: '#6B9E90', marginTop: 4 },
 
-  welcomeTitle: { fontSize: 22, fontWeight: '700', color: '#1A3C34', textAlign: 'center', marginBottom: 6 },
+  welcomeTitle: { fontSize: 22, fontWeight: '700', color: colors.primaryDark, textAlign: 'center', marginBottom: 6 },
   welcomeSub: { fontSize: 13, color: '#7A9E96', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 
   roleCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 16, padding: 16, marginBottom: 12, gap: 14,
     ...Platform.select({
-      ios: { shadowColor: '#1A6B5A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
       android: { elevation: 2 },
     }),
   },
@@ -569,10 +570,10 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
-  securityTitle: { fontSize: 13, fontWeight: '600', color: '#1A3C34', marginBottom: 2 },
+  securityTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
   securityDesc: { fontSize: 11, color: '#6B9E90', lineHeight: 16 },
   termsLight: { fontSize: 11, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
-  termsLink: { color: '#1A6B5A', fontWeight: '600' },
+  termsLink: { color: colors.primary, fontWeight: '600' },
 
   // ── Shared step styles ──────────────────────────────────────────────────────
   backBtn: {
@@ -607,24 +608,24 @@ const s = StyleSheet.create({
     width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
     ...Platform.select({
-      ios: { shadowColor: '#1A6B5A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6 },
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6 },
       android: { elevation: 3 },
     }),
   },
   plusDeco: {
     position: 'absolute', fontSize: 20,
-    color: '#1A6B5A', opacity: 0.3, fontWeight: '300',
+    color: colors.primary, opacity: 0.3, fontWeight: '300',
   },
 
   stepTitle: {
-    fontSize: 22, fontWeight: '700', color: '#1A3C34',
+    fontSize: 22, fontWeight: '700', color: colors.primaryDark,
     textAlign: 'center', marginBottom: 8,
   },
   stepSubtitle: {
     fontSize: 13, color: '#7A9E96', textAlign: 'center',
     lineHeight: 20, marginBottom: 28,
   },
-  phoneHighlight: { color: '#1A6B5A', fontWeight: '600' },
+  phoneHighlight: { color: colors.primary, fontWeight: '600' },
 
   // Phone input — premium native feel
   phoneInputBox: {
@@ -638,45 +639,45 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#0D4035',
+        shadowColor: colors.primaryDarkest,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 14,
       },
       android: { elevation: 3 },
-      web: { boxShadow: '0 4px 16px rgba(13,64,53,0.08)' },
+      web: { boxShadow: `0 4px 16px ${colors.primaryDarkShadow}` },
     }),
   },
   phoneInputBoxFocused: {
     ...Platform.select({
       ios: {
-        shadowColor: '#1A6B5A',
+        shadowColor: colors.primary,
         shadowOpacity: 0.18,
         shadowRadius: 20,
       },
       android: { elevation: 6 },
-      web: { boxShadow: '0 0 0 3px rgba(26,107,90,0.14), 0 4px 20px rgba(26,107,90,0.1)' },
+      web: { boxShadow: `0 0 0 3px ${colors.primaryShadowSoft}, 0 4px 20px ${colors.primaryShadowSoft}` },
     }),
   },
   countryCodeWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2FAF6',
+    backgroundColor: colors.primarySurface,
     paddingHorizontal: 16,
     height: '100%',
     gap: 6,
     minWidth: 90,
   },
   flagEmoji: { fontSize: 20 },
-  countryCodeText: { fontSize: 15, fontWeight: '700', color: '#1A3C34', letterSpacing: 0.2 },
-  inputDivider: { width: 1, height: '50%', backgroundColor: 'rgba(26,107,90,0.12)' },
+  countryCodeText: { fontSize: 15, fontWeight: '700', color: colors.primaryDark, letterSpacing: 0.2 },
+  inputDivider: { width: 1, height: '50%', backgroundColor: colors.primaryOverlay },
   phoneField: {
     flex: 1,
     height: '100%',
     paddingHorizontal: 16,
     fontSize: 17,
     fontWeight: '500',
-    color: '#1A3C34',
+    color: colors.primaryDark,
     letterSpacing: 0.5,
   },
   phoneCheckMark: {
@@ -705,22 +706,22 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     fontSize: 26,
     fontWeight: '700',
-    color: '#1A3C34',
+    color: colors.primaryDark,
     textAlign: 'center',
     ...Platform.select({
-      ios: { shadowColor: '#1A6B5A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
       android: { elevation: 1 },
-      web: { boxShadow: '0 2px 6px rgba(26,107,90,0.06)' },
+      web: { boxShadow: `0 2px 6px ${colors.primaryShadowSoft}` },
     }),
   },
-  otpBoxActive: { borderColor: '#1A6B5A', borderWidth: 2, backgroundColor: '#F7FDF9' },
-  otpBoxFilled: { borderColor: '#1A6B5A', backgroundColor: '#F0FAF5' },
+  otpBoxActive: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySurface },
+  otpBoxFilled: { borderColor: colors.primary, backgroundColor: colors.primarySurface },
 
   // Countdown / resend
   resendRow: { marginBottom: 24 },
   resendText: { fontSize: 13, color: '#94A3B8', textAlign: 'center' },
-  countdown: { color: '#1A6B5A', fontWeight: '700' },
-  resendLink: { fontSize: 13, color: '#1A6B5A', fontWeight: '600', textAlign: 'center' },
+  countdown: { color: colors.primary, fontWeight: '700' },
+  resendLink: { fontSize: 13, color: colors.primary, fontWeight: '600', textAlign: 'center' },
 
   // Disabled button
   primaryBtnDisabled: { backgroundColor: '#A0C4BC', shadowOpacity: 0 },
@@ -739,21 +740,21 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
   },
-  secureTitle: { fontSize: 13, fontWeight: '600', color: '#1A3C34', marginBottom: 2 },
+  secureTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
   secureDesc: { fontSize: 11, color: '#6B9E90' },
 
   // Primary button
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A6B5A',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
     width: '100%',
     marginBottom: 18,
     ...Platform.select({
-      ios: { shadowColor: '#1A6B5A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
       android: { elevation: 4 },
     }),
   },

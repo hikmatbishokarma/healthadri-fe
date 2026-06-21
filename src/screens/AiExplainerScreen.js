@@ -16,11 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { explainAi } from '../services/api';
+import { colors } from '../theme/colors';
 
 const C = {
-  teal: '#1A6B5A',
-  tealDark: '#0D4035',
-  tealPale: '#E8F5F1',
+  teal: colors.primary,
+  tealDark: colors.primaryDarkest,
+  tealPale: colors.primaryTint,
   tealMid: '#B2D8CF',
   amber: '#F59E0B',
   amberPale: '#FEF3C7',

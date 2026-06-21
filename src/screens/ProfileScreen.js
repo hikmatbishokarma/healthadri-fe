@@ -19,11 +19,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { generateInvite, searchHospitals, updateProfile } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 const C = {
-  primary: '#1A6B5A',
-  primaryDark: '#0D4035',
-  primaryLight: '#E8F5F1',
+  primary: colors.primary,
+  primaryDark: colors.primaryDarkest,
+  primaryLight: colors.primaryTint,
   text: '#0F172A',
   textSub: '#64748B',
   textMuted: '#94A3B8',

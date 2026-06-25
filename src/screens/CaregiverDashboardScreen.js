@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import LogoMark from '../../assets/logo.svg';
 import { getCaregiverPatient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -160,8 +161,7 @@ function Header({ patient, onBell }) {
   return (
     <View style={s.header}>
       <View style={s.headerLogoMark}>
-        <View style={s.miniCrossH} />
-        <View style={s.miniCrossV} />
+        <LogoMark width={28} height={28} />
       </View>
       <View style={{ flex: 1, marginLeft: 10 }}>
         <Text style={s.headerLabel}>You are supporting</Text>
@@ -552,8 +552,6 @@ const s = StyleSheet.create({
     borderBottomColor: C.border,
   },
   headerLogoMark: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  miniCrossH: { position: 'absolute', width: 24, height: 6, borderRadius: 3, backgroundColor: C.teal },
-  miniCrossV: { position: 'absolute', width: 6, height: 24, borderRadius: 3, backgroundColor: C.teal },
   headerLabel: { color: C.muted, fontSize: 11 },
   headerName:  { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 1 },
   bellBtn: { padding: 4 },

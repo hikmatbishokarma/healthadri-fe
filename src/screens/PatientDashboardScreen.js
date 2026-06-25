@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import LogoMark from '../../assets/logo.svg';
 import {
   getLatestTriage,
   getLatestSymptomEntry,
@@ -201,8 +202,7 @@ export default function PatientDashboardScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
         <View style={s.header}>
           <View style={s.headerLogoMark}>
-            <View style={s.miniCrossH} />
-            <View style={s.miniCrossV} />
+            <LogoMark width={28} height={28} />
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={s.greeting}>{greeting},</Text>
@@ -522,15 +522,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 18,
+    paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.border,
   },
   headerLogoMark: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  miniCrossH: { position: 'absolute', width: 24, height: 6, borderRadius: 3, backgroundColor: C.teal },
-  miniCrossV: { position: 'absolute', width: 6, height: 24, borderRadius: 3, backgroundColor: C.teal },
-  greeting: { color: C.muted, fontSize: 12 },
-  name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 1 },
+  greeting: { color: C.muted, fontSize: 12, lineHeight: 16 },
+  name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 2, lineHeight: 22 },
   bellBtn: { padding: 4 },
 
   // ── Status card (body) ──

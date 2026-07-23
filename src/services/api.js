@@ -11,13 +11,13 @@ import { getErrorMessage } from './errorHandler';
 // can reach the backend. Expo exposes the LAN IP of the dev server here.
 const lanHost = Constants.expoConfig?.hostUri?.split(':')[0] ?? '';
 
+// Priority: explicit build-time env (production/preview) → dev LAN host (Expo Go)
+// → hosted backend. The hosted fallback ensures a standalone APK reaches a real
+// server even if EXPO_PUBLIC_API_URL wasn't inlined, instead of an emulator-only
+// address that fails on physical devices.
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  (lanHost
-    ? `http://${lanHost}:3000`
-    : Platform.OS === 'android'
-      ? 'http://10.0.2.2:3000'
-      : 'http://localhost:3000');
+  (lanHost ? `http://${lanHost}:3000` : 'http://apihealthadri.i2space.in');
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -63,6 +63,8 @@ export const getCaregiverPatient = () => api.get('/caregiver/patient');
 
 export const getMe = () => api.get('/users/me');
 
+export const getUserById = (id) => api.get(`/users/${id}`);
+
 export const updateProfile = (payload) => api.post('/users/profile', payload);
 
 export const getSymptoms = () => api.get('/symptoms');
@@ -107,6 +109,8 @@ export const navigatorHeartbeat = (navigatorId) =>
   api.post('/messages/heartbeat', { navigatorId });
 
 export const getHospitals = () => api.get('/hospitals');
+
+export const getHospitalById = (id) => api.get(`/hospitals/${id}`);
 
 export const searchHospitals = (query) =>
   api.get(`/hospitals?search=${encodeURIComponent(query)}`);

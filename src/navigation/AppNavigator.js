@@ -23,6 +23,8 @@ import CaregiverScreen from '../screens/CaregiverScreen';
 import AddCaregiverScreen from '../screens/AddCaregiverScreen';
 import ConnectCaregiverScreen from '../screens/ConnectCaregiverScreen';
 import MedicationAlarmScreen from '../screens/MedicationAlarmScreen';
+import CareTeamScreen from '../screens/CareTeamScreen';
+import HospitalDetailScreen from '../screens/HospitalDetailScreen';
 import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
@@ -134,6 +136,16 @@ export default function AppNavigator() {
             <Stack.Screen
               name="Caregiver"
               component={CaregiverScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CareTeam"
+              component={CareTeamScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="HospitalDetail"
+              component={HospitalDetailScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

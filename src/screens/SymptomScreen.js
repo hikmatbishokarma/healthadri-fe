@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSymptoms, submitSymptomEntry, getLatestSymptomEntry } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import FaceScale from '../components/FaceScale';
+import TopSymptoms from '../components/TopSymptoms';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -60,9 +61,10 @@ export default function SymptomScreen({ navigation }) {
           getSymptoms(),
           user?._id ? getLatestSymptomEntry(user._id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
         ]);
+        const fetchedSymptoms = symptomsRes.data?.data ?? [];
         const list =
-          symptomsRes.data && symptomsRes.data.length
-            ? symptomsRes.data
+          fetchedSymptoms.length > 0
+            ? fetchedSymptoms
             : [
                 { _id: 'pain',    name: 'Pain',    min: 0, max: 10 },
                 { _id: 'fatigue', name: 'Fatigue', min: 0, max: 10 },
@@ -209,6 +211,16 @@ export default function SymptomScreen({ navigation }) {
                 ))}
               </View>
             )}
+
+            <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
+              <TopSymptoms
+                responses={symptoms.map((sym) => ({
+                  symptomId: sym._id,
+                  name: sym.name,
+                  value: valuesRef.current[sym._id] ?? 0,
+                }))}
+              />
+            </View>
 
             {savedGuidance.length > 0 && (
               <View style={styles.guidanceBlock}>
@@ -520,22 +532,24 @@ const styles = StyleSheet.create({
   guidanceBlock: {
     alignSelf: 'stretch',
     marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    padding: 16,
     gap: 8,
   },
   guidanceTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: C.text,
+    color: '#15803D',
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   guidanceRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  guidanceCheck: { color: C.teal, fontSize: 16, fontWeight: '700', lineHeight: 20 },
-  guidanceText: { color: C.text, fontSize: 13, flex: 1, lineHeight: 19 },
+  guidanceCheck: { color: '#16A34A', fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  guidanceText: { color: '#166534', fontSize: 13, flex: 1, lineHeight: 19 },
   savedHint: {
     fontSize: 12,
     color: C.muted,

@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { generateInvite, searchHospitals, updateProfile } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import BottomNav from '../components/BottomNav';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -73,7 +74,7 @@ const DP_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '
 const DP_YEARS = Array.from({ length: 40 }, (_, i) => String(new Date().getFullYear() - i));
 
 export default function ProfileScreen({ navigation }) {
-  const { user, refresh } = useAuth();
+  const { user, refresh, signOut } = useAuth();
   const isOnboarding = !user?.profileCompleted;
   const prevProfileCompleted = useRef(user?.profileCompleted);
 
@@ -156,7 +157,7 @@ export default function ProfileScreen({ navigation }) {
       setHospitalLoading(true);
       try {
         const res = await searchHospitals(text.trim());
-        setHospitalResults(res.data.slice(0, 6));
+        setHospitalResults((res.data?.data ?? []).slice(0, 6));
       } catch { setHospitalResults([]); }
       finally { setHospitalLoading(false); }
     }, 350);
@@ -982,8 +983,15 @@ export default function ProfileScreen({ navigation }) {
               last
             />
           </View>
+
+          <TouchableOpacity style={s.signOutRow} onPress={signOut} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={18} color={C.errorText} />
+            <Text style={s.signOutText}>Sign out</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+
+      <BottomNav active="Profile" navigation={navigation} />
     </View>
   );
 }
@@ -1671,6 +1679,12 @@ const s = StyleSheet.create({
   },
   menuItemLabel: { fontSize: 15, color: C.text, fontWeight: '500' },
   menuItemSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+
+  signOutRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginTop: 20, marginHorizontal: 16, paddingVertical: 12,
+  },
+  signOutText: { fontSize: 14, fontWeight: '600', color: C.errorText },
 
   // ── Edit mode ──
   editSectionTitle: {

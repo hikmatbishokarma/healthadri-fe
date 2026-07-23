@@ -22,8 +22,9 @@ import {
   getThread,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import RemindersScreen from './RemindersScreen';
-import ChatScreen from './ChatScreen';
+import BottomNav from '../components/BottomNav';
+import SeverityGauge from '../components/SeverityGauge';
+import TopSymptoms from '../components/TopSymptoms';
 import { colors } from '../theme/colors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,13 +69,14 @@ const C = {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function PatientDashboardScreen({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [triage, setTriage] = useState(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [nextItem, setNextItem] = useState(null);
   const [urgentReminder, setUrgentReminder] = useState(null);
   const [recentNavMessage, setRecentNavMessage] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [latestResponses, setLatestResponses] = useState([]);
 
   const fetchAll = useCallback(async () => {
     if (!user?._id) return;
@@ -95,8 +97,10 @@ export default function PatientDashboardScreen({ navigation }) {
         const entryDate = new Date(entry.createdAt);
         const today = new Date();
         setCheckedInToday(entryDate.toDateString() === today.toDateString());
+        setLatestResponses(entry.responses || []);
       } else {
         setCheckedInToday(false);
+        setLatestResponses([]);
       }
 
       // ── secondary: appointments / reminders / messages ──
@@ -139,6 +143,7 @@ export default function PatientDashboardScreen({ navigation }) {
     } catch {
       setTriage(null);
       setCheckedInToday(false);
+      setLatestResponses([]);
       setNextItem(null);
       setUrgentReminder(null);
       setRecentNavMessage(null);
@@ -163,11 +168,6 @@ export default function PatientDashboardScreen({ navigation }) {
           ? { icon: 'happy-outline', text: 'Feeling well today', color: C.green }
           : { icon: 'happy-outline', text: 'Tap to check in', color: C.muted };
 
-  const [activeTab, setActiveTab] = useState('Home');
-
-  const comingSoon = (label) => Alert.alert(label, 'Coming soon');
-
-  const initials = user?.name?.split(' ').map(w => w[0]).slice(0, 2).join('') ?? 'P';
   const greeting = timeGreeting();
   const statusHint =
     severity === 'HIGH' ? 'Please take care and rest well.' :
@@ -179,19 +179,6 @@ export default function PatientDashboardScreen({ navigation }) {
     { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: colors.primaryTint, tint: colors.primary, onPress: () => navigation.navigate('Symptom') },
     { ionIcon: 'chatbubble-outline', iconColor: '#7C3AED',       label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
     { ionIcon: 'alarm-outline',      iconColor: '#EF4444',       label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
-    // { img: require('../../assets/icons/hospital.png'),       label: 'Find\nHospital',   bg: '#DBEAFE', tint: '#1D4ED8', onPress: () => navigation.navigate('Hospitals') },
-    { img: require('../../assets/icons/insurance-card.png'), label: 'Insurance\nHelp',  bg: '#FEF3C7', tint: '#D97706', onPress: () => comingSoon('Insurance Help') },
-    { img: require('../../assets/icons/health.png'),          label: 'My\nWellbeing',    bg: '#DCFCE7', tint: '#16A34A', onPress: () => comingSoon('My Wellbeing') },
-    { img: require('../../assets/icons/book.png'),            label: 'Learn',             bg: '#EEF2FF', tint: '#4338CA', onPress: () => comingSoon('Awareness') },
-    { ionIcon: 'people-outline',     iconColor: '#EA580C',       label: 'Caregiver',         bg: '#FFEDD5',                  onPress: () => comingSoon('Caregiver') },
-  ];
-
-  const PATIENT_TABS = [
-    { id: 'Home',      icon: 'home-outline',       iconActive: 'home',       label: 'Home' },
-    { id: 'CheckIn',   icon: 'pulse-outline',       iconActive: 'pulse',      label: 'Check In' },
-    { id: 'Reminders', icon: 'alarm-outline',       iconActive: 'alarm',      label: 'Reminders' },
-    { id: 'Messages',  icon: 'chatbubble-outline',  iconActive: 'chatbubble', label: 'Messages' },
-    { id: 'Profile',   icon: 'person-outline',      iconActive: 'person',     label: 'Profile' },
   ];
 
   return (
@@ -218,14 +205,12 @@ export default function PatientDashboardScreen({ navigation }) {
         </View>
       </SafeAreaView>
 
-      {/* ── HOME TAB ── */}
-      {activeTab === 'Home' && (
-        <ScrollView
-          style={s.body}
-          contentContainerStyle={s.bodyContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
-        >
+      <ScrollView
+        style={s.body}
+        contentContainerStyle={s.bodyContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
+      >
           <TouchableOpacity
             style={s.statusCard}
             onPress={() => (severity || checkedInToday)
@@ -237,7 +222,9 @@ export default function PatientDashboardScreen({ navigation }) {
               <Ionicons name="heart" size={22} color="#4CAF50" style={s.decoHeart} />
               <Text style={s.decoPlus}>+</Text>
             </View>
-            <Ionicons name={status.icon} size={36} color={status.color} style={s.statusFace} />
+            <SeverityGauge severity={severity} size={52} strokeWidth={5} color={status.color}>
+              <Ionicons name={status.icon} size={24} color={status.color} />
+            </SeverityGauge>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.statusLabel}>How you're feeling today?</Text>
               <Text style={s.statusTitle}>{status.text}</Text>
@@ -249,6 +236,8 @@ export default function PatientDashboardScreen({ navigation }) {
               </Text>
             </View>
           </TouchableOpacity>
+
+          <TopSymptoms responses={latestResponses} />
 
           <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={s.weeklyIconBox}>
@@ -306,162 +295,9 @@ export default function PatientDashboardScreen({ navigation }) {
 
           <Text style={s.sectionLabel}>NEXT UP</Text>
           <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
-
-          <TouchableOpacity
-            style={s.navCard}
-            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
-            activeOpacity={0.75}
-          >
-            <View style={s.navIconBox}>
-              <Ionicons name="shield-checkmark-outline" size={26} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.navTitle}>Speak to your care navigator</Text>
-              <Text style={s.navSub}>We're here to support you every step of the way</Text>
-            </View>
-            <Text style={s.chevron}>›</Text>
-          </TouchableOpacity>
         </ScrollView>
-      )}
 
-      {/* ── CHECK IN TAB ── */}
-      {activeTab === 'CheckIn' && (
-        <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
-          <View style={s.checkinHeader}>
-            <Text style={s.checkinTitle}>Daily Check-in</Text>
-            <Text style={s.checkinSubtitle}>
-              {(severity || checkedInToday) ? 'Checked in today' : 'How are you feeling today?'}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={s.checkinCard}
-            onPress={() => (severity || checkedInToday)
-              ? navigation.navigate('WeeklyReport')
-              : navigation.navigate('Symptom')}
-            activeOpacity={0.88}
-          >
-            <View style={s.statusDeco} pointerEvents="none">
-              <Ionicons name="heart" size={22} color="#4CAF50" style={s.decoHeart} />
-              <Text style={s.decoPlus}>+</Text>
-            </View>
-            <Ionicons name={status.icon} size={36} color={status.color} style={s.checkinFace} />
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={s.checkinCardLabel}>Today's status</Text>
-              <Text style={s.checkinCardTitle}>{status.text}</Text>
-              <Text style={s.checkinCardHint}>{statusHint}</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.checkinStartBtn, (severity || checkedInToday) && s.checkinUpdateBtn]}
-            onPress={() => navigation.navigate('Symptom')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="pulse" size={20} color="#fff" />
-            <Text style={s.checkinStartText}>
-              {(severity || checkedInToday) ? 'Update Check-in' : "Start Today's Check-in"}
-            </Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
-            <View style={s.weeklyIconBox}>
-              <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.weeklyTitle}>See your weekly report</Text>
-              <Text style={s.weeklySub}>View your symptom trends</Text>
-            </View>
-            <Text style={s.chevron}>›</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
-
-      {/* ── PROFILE TAB ── */}
-      {activeTab === 'Profile' && (
-        <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
-          <View style={s.profileCard}>
-            <View style={s.profileAvatar}>
-              <Text style={s.profileAvatarText}>{initials}</Text>
-            </View>
-            <Text style={s.profileName}>{user?.name || 'Patient'}</Text>
-            {user?.patientCode && (
-              <View style={s.profileCodeBadge}>
-                <Text style={s.profileCodeText}>{user.patientCode}</Text>
-              </View>
-            )}
-            <Text style={s.profilePhone}>{user?.phone || ''}</Text>
-          </View>
-
-          <View style={s.profileSection}>
-            {[
-              { icon: 'person-outline', label: 'Edit Profile', onPress: () => navigation.navigate('Profile') },
-              { icon: 'document-text-outline', label: 'Medical Records', onPress: () => navigation.navigate('MedicalRecords') },
-              { icon: 'notifications-outline', label: 'Reminders', onPress: () => navigation.navigate('Reminders') },
-            ].map((item, i, arr) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[s.profileRow, i < arr.length - 1 && s.profileRowBorder]}
-                onPress={item.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={s.profileRowIcon}>
-                  <Ionicons name={item.icon} size={18} color={C.teal} />
-                </View>
-                <Text style={s.profileRowLabel}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={C.muted} />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity style={s.signOut} onPress={signOut}>
-            <Text style={s.signOutText}>Sign out</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
-
-      {/* ── REMINDERS TAB ── */}
-      {activeTab === 'Reminders' && (
-        <View style={{ flex: 1 }}>
-          <RemindersScreen navigation={navigation} route={{ params: {} }} embedded />
-        </View>
-      )}
-
-      {/* ── MESSAGES TAB ── */}
-      {activeTab === 'Messages' && (
-        <View style={{ flex: 1 }}>
-          <ChatScreen
-            navigation={navigation}
-            route={{ params: { withUserId: user?.assignedNavigatorId, name: 'Care Team' } }}
-            embedded
-          />
-        </View>
-      )}
-
-      {/* ── BOTTOM TAB BAR ── */}
-      <SafeAreaView edges={['bottom']} style={s.tabBar}>
-        {PATIENT_TABS.map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={s.tabItem}
-              onPress={() => {
-                if (tab.onPress) { tab.onPress(); }
-                else { setActiveTab(tab.id); }
-              }}
-            >
-              <Ionicons
-                name={active ? tab.iconActive : tab.icon}
-                size={22}
-                color={active ? C.teal : C.muted}
-              />
-              <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </SafeAreaView>
+      <BottomNav active="Home" navigation={navigation} />
     </View>
   );
 }
@@ -559,7 +395,6 @@ const s = StyleSheet.create({
     top: 20,
     right: 18,
   },
-  statusFace: { fontSize: 40, lineHeight: 46 },
   statusLabel: { fontSize: 11, color: C.muted, marginBottom: 3 },
   statusTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 3, lineHeight: 22 },
   statusHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
@@ -698,96 +533,6 @@ const s = StyleSheet.create({
   apptTitle: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 },
   apptSub: { fontSize: 11, color: C.muted, marginTop: 1 },
 
-  // ── Navigator contact card ──
-  navCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.tealPale,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 28,
-  },
-  navIconBox: {
-    width: 52, height: 52, borderRadius: 12,
-    backgroundColor: colors.primaryOverlay,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  navTitle: { fontSize: 14, fontWeight: '700', color: C.teal, marginBottom: 3 },
-  navSub: { fontSize: 12, color: C.textSub, lineHeight: 17 },
-
   // ── Shared ──
   chevron: { color: C.muted, fontSize: 24, fontWeight: '300', marginLeft: 4 },
-  signOut: { alignItems: 'center', paddingVertical: 6, marginTop: 4 },
-  signOutText: { color: C.muted, fontSize: 12 },
-
-  // ── Bottom tab bar ──
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.border,
-    paddingTop: 10,
-    paddingBottom: 6,
-  },
-  tabItem: { flex: 1, alignItems: 'center', gap: 3 },
-  tabLabel: { fontSize: 10, color: C.muted, fontWeight: '500' },
-  tabLabelActive: { color: C.teal, fontWeight: '700' },
-
-  // ── Profile tab ──
-  profileCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 24,
-    alignItems: 'center', marginBottom: 16,
-  },
-  profileAvatar: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
-  },
-  profileAvatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
-  profileName: { fontSize: 20, fontWeight: '700', color: C.text, marginBottom: 6 },
-  profileCodeBadge: {
-    backgroundColor: C.tealPale, paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 99, marginBottom: 6,
-  },
-  profileCodeText: { fontSize: 12, color: C.teal, fontWeight: '700', letterSpacing: 0.5 },
-  profilePhone: { fontSize: 13, color: C.muted },
-  profileSection: {
-    backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 16,
-  },
-  profileRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
-  },
-  profileRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
-  profileRowIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.tealPale, alignItems: 'center', justifyContent: 'center',
-  },
-  profileRowLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: C.text },
-
-  // ── Check In tab ──
-  checkinHeader: { alignItems: 'center', marginBottom: 20 },
-  checkinTitle: { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 4 },
-  checkinSubtitle: { fontSize: 14, color: C.muted },
-  checkinCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EDF7F2', borderRadius: 18, padding: 18,
-    marginBottom: 16, overflow: 'hidden',
-  },
-  checkinFace: { fontSize: 44, lineHeight: 50 },
-  checkinCardLabel: { fontSize: 11, color: C.muted, marginBottom: 3 },
-  checkinCardTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 3 },
-  checkinCardHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
-  checkinStartBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.teal, borderRadius: 16, paddingVertical: 16, gap: 10,
-    marginBottom: 16,
-    shadowColor: C.teal, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
-  },
-  checkinStartText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  checkinUpdateBtn: {
-    backgroundColor: C.tealDark,
-    shadowOpacity: 0.15,
-  },
 });

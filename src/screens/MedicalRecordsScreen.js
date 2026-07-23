@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Illustration from '../components/Illustration';
 import {
@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
@@ -24,6 +25,7 @@ import {
   getDocumentFileUrl,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import BottomNav from '../components/BottomNav';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -79,6 +81,26 @@ export default function MedicalRecordsScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploadModal, setUploadModal] = useState(null); // { fileAsset } when picked
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState(null);
+
+  const counts = useMemo(() => {
+    const c = { prescription: 0, lab: 0, discharge: 0, other: 0 };
+    docs.forEach((d) => {
+      const key = c[d.category] !== undefined ? d.category : 'other';
+      c[key] += 1;
+    });
+    return c;
+  }, [docs]);
+
+  const filteredDocs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return docs.filter((d) => {
+      if (activeCategory && d.category !== activeCategory) return false;
+      if (q && !d.fileName?.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [docs, activeCategory, search]);
 
   const fetchDocs = useCallback(async () => {
     if (!patientId) return;
@@ -184,6 +206,49 @@ export default function MedicalRecordsScreen({ navigation, route }) {
           contentContainerStyle={styles.bodyContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
+          {docs.length > 0 && (
+            <>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={16} color={C.muted} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Search documents"
+                  placeholderTextColor={C.muted}
+                />
+                {search.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={16} color={C.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <Text style={styles.sectionLabel}>DOCUMENT CATEGORIES</Text>
+              <View style={styles.categoryGrid}>
+                {CATEGORIES.map((c) => {
+                  const active = activeCategory === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.categoryTile, active && { borderColor: c.color, backgroundColor: c.pale }]}
+                      onPress={() => setActiveCategory(active ? null : c.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name={c.icon} size={20} color={c.color} />
+                      <Text style={styles.categoryTileLabel}>{c.label}</Text>
+                      <Text style={[styles.categoryTileCount, { color: c.color }]}>{counts[c.id]}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.sectionLabel}>
+                {activeCategory || search ? 'MATCHING DOCUMENTS' : 'RECENT DOCUMENTS'}
+              </Text>
+            </>
+          )}
+
           {docs.length === 0 ? (
             <View style={styles.emptyCard}>
               <Illustration name="reports_empty" size={160} style={styles.emptyIllustration} />
@@ -194,8 +259,13 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                   : 'Upload prescriptions, lab reports, or discharge summaries here. Your care team can view them.'}
               </Text>
             </View>
+          ) : filteredDocs.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No matching documents</Text>
+              <Text style={styles.emptyText}>Try a different search or category.</Text>
+            </View>
           ) : (
-            docs.map((d) => (
+            filteredDocs.map((d) => (
               <DocRow
                 key={d._id}
                 doc={d}
@@ -218,6 +288,8 @@ export default function MedicalRecordsScreen({ navigation, route }) {
           </View>
         </SafeAreaView>
       )}
+
+      {!readOnly && <BottomNav active="Documents" navigation={navigation} />}
 
       <UploadModal
         visible={!!uploadModal}
@@ -413,6 +485,48 @@ const styles = StyleSheet.create({
 
   body: { flex: 1 },
   bodyContent: { padding: 12, paddingBottom: 24 },
+
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: C.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  searchInput: { flex: 1, fontSize: 13, color: C.text, padding: 0 },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.muted,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  categoryTile: {
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: C.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    gap: 4,
+  },
+  categoryTileLabel: { fontSize: 12, fontWeight: '600', color: C.text },
+  categoryTileCount: { fontSize: 18, fontWeight: '800' },
 
   emptyCard: {
     backgroundColor: C.card,

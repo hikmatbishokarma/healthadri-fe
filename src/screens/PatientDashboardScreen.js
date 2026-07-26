@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Illustration from '../components/Illustration';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -13,33 +12,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import LogoMark from '../../assets/logo.svg';
 import {
   getLatestTriage,
   getLatestSymptomEntry,
-  getAppointments,
+  getSymptomHistory,
   getPatientReminders,
-  getThread,
+  getCareReminders,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
 import SeverityGauge from '../components/SeverityGauge';
-import TopSymptoms from '../components/TopSymptoms';
+import CheckInIllustration from '../components/CheckInIllustration';
 import { colors } from '../theme/colors';
+import { shadows } from '../theme/shadows';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-
-function dueLabel(value) {
-  const d = new Date(value);
-  const now = new Date();
-  const sameDay = (a, b) => a.toDateString() === b.toDateString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  if (sameDay(d, now)) return 'today';
-  if (sameDay(d, tomorrow)) return 'tomorrow';
-  return d.toLocaleDateString();
-}
 
 function timeGreeting() {
   const h = new Date().getHours();
@@ -48,19 +38,58 @@ function timeGreeting() {
   return 'Good evening';
 }
 
+// "Tue · 2 days ago" — used only for a check-in that isn't from today.
+function relativeDayLabel(dateValue) {
+  const d = new Date(dateValue);
+  const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((startOfToday - startOfDay) / 86400000);
+  const dayName = d.toLocaleDateString([], { weekday: 'short' });
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return `${dayName} · Yesterday`;
+  return `${dayName} · ${diffDays} days ago`;
+}
+
+// Same tiering the app already uses elsewhere (WeeklyReportScreen's getColor,
+// TopSymptoms) — ≥8 needs attention, ≥5 moderate, else steady. Reused here so
+// this doesn't become a second severity scale for the same underlying data.
+function worstSeverityTier(responses) {
+  const withValues = (responses || []).filter((r) => r.value > 0);
+  if (withValues.length === 0) return { tier: 'steady' };
+  const worst = withValues.reduce((a, b) => (b.value > a.value ? b : a));
+  if (worst.value >= 8) return { tier: 'attention', name: worst.name };
+  if (worst.value >= 5) return { tier: 'moderate', name: worst.name };
+  return { tier: 'steady' };
+}
+
+const MED_DONE_STATUSES = ['TAKEN', 'PATIENT_CONFIRMED', 'CAREGIVER_CONFIRMED'];
+
+// Counts *distinct calendar days* with a check-in in the last 7 days — not raw
+// entry count, so resubmitting the same day (SymptomScreen allows "submit
+// again if symptoms changed") doesn't inflate the number.
+function checkinDaysThisWeek(entries) {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const days = new Set();
+  (entries || []).forEach((e) => {
+    const d = new Date(e.createdAt);
+    if (d >= sevenDaysAgo) days.add(d.toDateString());
+  });
+  return days.size;
+}
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
   tealMid: '#B2D8CF',
-  red: '#E53935',
-  redPale: '#FEE2E2',
-  redBorder: '#FECACA',
-  amber: '#F59E0B',
-  green: '#22C55E',
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
+  red: colors.danger,
+  amber: colors.warning,
+  green: colors.successStrong,
+  bg: colors.background,
   text: '#111827',
   textSub: '#4B5563',
   muted: '#9CA3AF',
@@ -72,81 +101,60 @@ export default function PatientDashboardScreen({ navigation }) {
   const { user } = useAuth();
   const [triage, setTriage] = useState(null);
   const [checkedInToday, setCheckedInToday] = useState(false);
-  const [nextItem, setNextItem] = useState(null);
-  const [urgentReminder, setUrgentReminder] = useState(null);
-  const [recentNavMessage, setRecentNavMessage] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [lastCheckinDate, setLastCheckinDate] = useState(null);
   const [latestResponses, setLatestResponses] = useState([]);
+  const [nextItem, setNextItem] = useState(null);
+  const [careReminders, setCareReminders] = useState([]);
+  const [checkinDays, setCheckinDays] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user?._id) return;
     try {
-      const navId = user.assignedNavigatorId;
       const nil = { data: null };
-      const [triageRes, entryRes, apptRes, remRes, msgRes] = await Promise.all([
+      const [triageRes, entryRes, historyRes, remRes, careRes] = await Promise.all([
         getLatestTriage(user._id).catch(() => nil),
         getLatestSymptomEntry(user._id).catch(() => nil),
-        getAppointments(user._id).catch(() => nil),
-        getPatientReminders(user._id).catch(() => nil),
-        navId ? getThread(user._id).catch(() => nil) : Promise.resolve(nil),
+        getSymptomHistory(user._id, 20).catch(() => ({ data: [] })),
+        getPatientReminders(user._id).catch(() => ({ data: [] })),
+        getCareReminders(user._id).catch(() => ({ data: [] })),
       ]);
       setTriage(triageRes.data);
+      setCheckinDays(checkinDaysThisWeek(historyRes.data));
 
       const entry = entryRes.data;
       if (entry?.createdAt) {
         const entryDate = new Date(entry.createdAt);
         const today = new Date();
         setCheckedInToday(entryDate.toDateString() === today.toDateString());
+        setLastCheckinDate(entry.createdAt);
         setLatestResponses(entry.responses || []);
       } else {
         setCheckedInToday(false);
+        setLastCheckinDate(null);
         setLatestResponses([]);
       }
 
-      // ── secondary: appointments / reminders / messages ──
-      try {
-        const now = Date.now();
-        const items = [];
-        (apptRes.data || []).forEach((a) => {
-          const when = new Date(a.scheduledAt).getTime();
-          const finalized = ['completed', 'cancelled', 'missed'].includes(a.status);
-          if (!finalized && when >= now) items.push({ kind: 'appointment', when, data: a });
-        });
-        (remRes.data || []).forEach((r) => {
-          const when = new Date(r.date).getTime();
-          if (when >= now) items.push({ kind: 'reminder', when, data: r });
-        });
-        items.sort((a, b) => a.when - b.when);
-        setNextItem(items[0] || null);
+      setCareReminders(careRes.data || []);
 
-        const URGENT_MS = 48 * 60 * 60 * 1000;
-        const urgent = (remRes.data || [])
-          .map((r) => ({ ...r, _when: new Date(r.date).getTime() }))
-          .filter((r) => r._when >= now && r._when - now <= URGENT_MS)
-          .sort((a, b) => a._when - b._when)[0];
-        setUrgentReminder(urgent || null);
-
-        const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
-        const fromNav = (msgRes.data || [])
-          .filter(
-            (m) =>
-              String(m.senderId) === String(navId) &&
-              now - new Date(m.createdAt).getTime() <= RECENT_MS,
-          )
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        setRecentNavMessage(fromNav || null);
-      } catch {
-        setNextItem(null);
-        setUrgentReminder(null);
-        setRecentNavMessage(null);
-      }
+      // "Next Up" — navigator-verified visit/test reminders only. Appointments
+      // are not patient-created and are not sourced from here (see
+      // RemindersScreen.js — the old Appointment collection has no creation
+      // path anywhere in the system and has been retired).
+      const now = Date.now();
+      const upcoming = (remRes.data || [])
+        .map((r) => ({ when: new Date(r.date).getTime(), data: r }))
+        .filter((r) => r.when >= now)
+        .sort((a, b) => a.when - b.when);
+      setNextItem(upcoming[0] || null);
     } catch {
       setTriage(null);
       setCheckedInToday(false);
+      setLastCheckinDate(null);
       setLatestResponses([]);
+      setCareReminders([]);
+      setCheckinDays(0);
       setNextItem(null);
-      setUrgentReminder(null);
-      setRecentNavMessage(null);
     } finally {
       setRefreshing(false);
     }
@@ -164,29 +172,43 @@ export default function PatientDashboardScreen({ navigation }) {
       ? { icon: 'sad-outline',   text: 'Symptoms are high today', color: C.red }
       : severity === 'MED'
         ? { icon: 'remove-circle-outline', text: 'Some symptoms today', color: C.amber }
-        : severity === 'LOW' || (!severity && checkedInToday)
-          ? { icon: 'happy-outline', text: 'Feeling well today', color: C.green }
-          : { icon: 'happy-outline', text: 'Tap to check in', color: C.muted };
+        : { icon: 'happy-outline', text: 'Feeling well today', color: C.green };
 
-  const greeting = timeGreeting();
   const statusHint =
     severity === 'HIGH' ? 'Please take care and rest well.' :
     severity === 'MED'  ? 'Monitor your symptoms closely.' :
-    severity === 'LOW' || (!severity && checkedInToday) ? "You're doing great, keep it up!" :
-    'Log your symptoms to get started.';
+    "You're doing great, keep it up!";
 
-  const quickActions = [
-    { img: require('../../assets/icons/stethoscope.png'),      label: 'Check\nSymptoms', bg: colors.primaryTint, tint: colors.primary, onPress: () => navigation.navigate('Symptom') },
-    { ionIcon: 'chatbubble-outline', iconColor: '#7C3AED',       label: 'Message\nTeam',   bg: '#EDE9FE',                  onPress: () => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' }) },
-    { ionIcon: 'alarm-outline',      iconColor: '#EF4444',       label: 'Reminders',        bg: '#FEE2E2',                  onPress: () => navigation.navigate('Reminders') },
-  ];
+  const greeting = timeGreeting();
+
+  // "Talk to your Care Team" only shows when today's alert is real and still
+  // unresolved — `triage` is inherently today-only (TriageService.findLatestForPatient
+  // filters to today server-side), and an alert can't exist without a today
+  // check-in, so this condition alone correctly excludes stale/past entries.
+  const worst = worstSeverityTier(latestResponses);
+  const showCareTeamCta = checkedInToday && alert?.status === 'pending' && worst.tier === 'attention';
+
+  const medsToday = useMemo(() => {
+    const todayStr = new Date().toDateString();
+    const items = careReminders
+      .filter((r) => r.taskType === 'MEDICATION' && new Date(r.scheduledAt).toDateString() === todayStr)
+      .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
+      .map((r) => ({
+        id: r._id,
+        title: r.taskTitle,
+        time: new Date(r.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        taken: MED_DONE_STATUSES.includes(r.response) || MED_DONE_STATUSES.includes(r.status),
+      }));
+    const doneCount = items.filter((i) => i.taken).length;
+    return { items, total: items.length, doneCount };
+  }, [careReminders]);
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       {/* Header — always visible */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.white }}>
         <View style={s.header}>
           <View style={s.headerLogoMark}>
             <LogoMark width={28} height={28} />
@@ -211,91 +233,138 @@ export default function PatientDashboardScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.teal} />}
       >
-          <TouchableOpacity
-            style={s.statusCard}
-            onPress={() => (severity || checkedInToday)
-              ? navigation.navigate('WeeklyReport')
-              : navigation.navigate('Symptom')}
-            activeOpacity={0.92}
-          >
-            <View style={s.statusDeco} pointerEvents="none">
-              <Ionicons name="heart" size={22} color="#4CAF50" style={s.decoHeart} />
-              <Text style={s.decoPlus}>+</Text>
-            </View>
-            <SeverityGauge severity={severity} size={52} strokeWidth={5} color={status.color}>
-              <Ionicons name={status.icon} size={24} color={status.color} />
-            </SeverityGauge>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.statusLabel}>How you're feeling today?</Text>
-              <Text style={s.statusTitle}>{status.text}</Text>
-              <Text style={s.statusHint}>{statusHint}</Text>
-            </View>
-            <View style={s.logBtn}>
-              <Text style={s.logBtnText}>
-                {(severity || checkedInToday) ? 'View Report ›' : 'Log Symptoms ›'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+        {/* ── Today hero: the single door to check-in ── */}
+        <TouchableOpacity
+          style={checkedInToday ? s.todayHero : s.todayHeroTouchable}
+          onPress={() => checkedInToday ? navigation.navigate('WeeklyReport') : navigation.navigate('Symptom')}
+          activeOpacity={0.92}
+        >
+          {checkedInToday ? (
+            <>
+              <View style={s.heroRow}>
+                <SeverityGauge severity={severity} size={52} strokeWidth={5} color={status.color}>
+                  <Ionicons name={status.icon} size={24} color={status.color} />
+                </SeverityGauge>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.heroEyebrow}>Today</Text>
+                  <Text style={s.heroTitle}>{status.text}</Text>
+                  <Text style={s.heroHint}>{statusHint}</Text>
+                </View>
+                <Text style={s.chevron}>›</Text>
+              </View>
+              {latestResponses.length > 0 && (
+                <LastCheckin
+                  lastCheckinDate={lastCheckinDate}
+                  worst={worst}
+                  showCareTeamCta={showCareTeamCta}
+                  onPressCareTeam={() => navigation.navigate('CareTeam')}
+                />
+              )}
+            </>
+          ) : (
+            <LinearGradient
+              colors={['#E7F8F2', '#F8FDFC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.todayHeroGradient}
+            >
+              <View style={s.heroIllustration} pointerEvents="none">
+                <CheckInIllustration size={58} />
+              </View>
 
-          <TopSymptoms responses={latestResponses} />
+              <View style={s.heroTextWrap}>
+                <Text style={s.heroTitle}>How are you feeling today?</Text>
+                <Text style={s.heroHint}>Your daily check-in helps your care team understand how you're doing.</Text>
+              </View>
 
-          <TouchableOpacity style={s.weeklyCard} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
-            <View style={s.weeklyIconBox}>
-              <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
+              <View style={s.heroCta}>
+                <Text style={s.heroCtaText}>Check In</Text>
+                <View style={s.heroCtaIcon}>
+                  <Ionicons name="arrow-forward" size={14} color={C.teal} />
+                </View>
+              </View>
+
+              {latestResponses.length > 0 && (
+                <LastCheckin
+                  lastCheckinDate={lastCheckinDate}
+                  worst={worst}
+                  showCareTeamCta={showCareTeamCta}
+                  onPressCareTeam={() => navigation.navigate('CareTeam')}
+                />
+              )}
+            </LinearGradient>
+          )}
+        </TouchableOpacity>
+
+        {/* ── Medications Today: adherence, elevated out of a generic tile.
+             Always shown — never disappears when empty, matches how every
+             other card on this screen (e.g. Next Up) handles no-data. ── */}
+        <View style={s.medsCard}>
+          <View style={s.medsHead}>
+            <Text style={s.sectionLabel}>MEDICATIONS TODAY</Text>
+            {medsToday.total > 0 && (
+              <TouchableOpacity onPress={() => navigation.navigate('Reminders')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={s.medsViewAll}>View All ›</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {medsToday.total === 0 ? (
+            <Text style={s.medsEmptyText}>No medications scheduled for today.</Text>
+          ) : (
+            medsToday.items.map((m) => (
+              <View key={m.id} style={s.medItemRow}>
+                <Text style={s.medItemTime}>{m.time}</Text>
+                <Text style={s.medItemName} numberOfLines={1}>{m.title}</Text>
+                {m.taken ? (
+                  <View style={s.medStatusDone}>
+                    <Ionicons name="checkmark" size={12} color={C.green} />
+                    <Text style={s.medStatusDoneText}>Taken</Text>
+                  </View>
+                ) : (
+                  <View style={s.medStatusPending}>
+                    <Ionicons name="time-outline" size={12} color={C.amber} />
+                    <Text style={s.medStatusPendingText}>Pending</Text>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* ── Weekly Report + Care Team: two pure navigation rows, no own
+             per-item status — merged into one plain list per Design DNA v2
+             §14.3/14.4 (identical bordered-box repetition was the flagged
+             violation), instead of two separate bordered cards. ── */}
+        <View style={s.navList}>
+          <TouchableOpacity style={s.navRow} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
+            <View style={[s.navIconBox, { backgroundColor: colors.primaryTint }]}>
+              <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.weeklyTitle}>See your weekly report</Text>
-              <Text style={s.weeklySub}>Track your health progress</Text>
+              <Text style={s.navRowTitle}>{checkinDays} of 7 days checked in this week</Text>
+              <Text style={s.navRowSub}>Consistency helps your care team understand you better</Text>
             </View>
             <Text style={s.chevron}>›</Text>
           </TouchableOpacity>
 
-          <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
-          <View style={s.quickGrid}>
-            {quickActions.map((item, i) => (
-              <TouchableOpacity key={i} style={s.quickItem} onPress={item.onPress} activeOpacity={0.7}>
-                <View style={[s.quickIconBox, { backgroundColor: item.bg }]}>
-                  {item.img
-                    ? <Image source={item.img} style={[s.quickIconImg, item.tint && { tintColor: item.tint }]} />
-                    : <Ionicons name={item.ionIcon} size={24} color={item.iconColor || '#374151'} />}
-                </View>
-                <Text style={s.quickLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <View style={s.navDivider} />
 
-          {urgentReminder && (
-            <TouchableOpacity
-              style={[s.alertCard, { backgroundColor: C.redPale, borderColor: C.redBorder }]}
-              onPress={() => navigation.navigate('Reminders')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="warning-outline" size={22} color="#B45309" style={s.alertIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.alertTitle}>
-                  {(urgentReminder.type || 'Reminder').toUpperCase()} due {dueLabel(urgentReminder.date)}
-                </Text>
-                <Text style={s.alertDesc}>{urgentReminder.title}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          {recentNavMessage && (
-            <TouchableOpacity
-              style={[s.alertCard, { backgroundColor: C.tealPale, borderColor: C.tealMid }]}
-              onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chatbubble-outline" size={22} color={colors.primary} style={s.alertIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.alertTitle}>Message from your navigator</Text>
-                <Text style={s.alertDesc} numberOfLines={2}>"{recentNavMessage.text}"</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={s.navRow}
+            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
+            activeOpacity={0.7}
+          >
+            <View style={[s.navIconBox, { backgroundColor: colors.marigoldTint }]}>
+              <Ionicons name="chatbubble-outline" size={18} color={colors.accentViolet} />
+            </View>
+            <Text style={[s.navRowTitle, { flex: 1, marginLeft: 12 }]}>Message your Care Guide</Text>
+            <Text style={s.chevron}>›</Text>
+          </TouchableOpacity>
+        </View>
 
-          <Text style={s.sectionLabel}>NEXT UP</Text>
-          <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
-        </ScrollView>
+        <Text style={s.sectionLabel}>NEXT UP</Text>
+        <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
+      </ScrollView>
 
       <BottomNav active="Home" navigation={navigation} />
     </View>
@@ -303,6 +372,46 @@ export default function PatientDashboardScreen({ navigation }) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+// Below-the-divider severity summary of the patient's most recent check-in.
+// Shared by both Today-hero states — "not checked in today" (may point at a
+// stale entry) and "checked in today" (points at today's own entry) — so the
+// four states in 05-home.md §5.2 render identically in either case instead of
+// only existing in one branch.
+function LastCheckin({ lastCheckinDate, worst, showCareTeamCta, onPressCareTeam }) {
+  return (
+    <View style={s.lastCheckin}>
+      <View style={s.lastCheckinRow}>
+        <Ionicons name="time-outline" size={13} color={C.muted} style={{ marginTop: 2 }} />
+        {worst.tier === 'steady' && (
+          <Text style={s.lastCheckinText}>
+            Last check-in <Text style={s.bold}>{relativeDayLabel(lastCheckinDate)}</Text> — feeling steady, nothing stood out.
+          </Text>
+        )}
+        {worst.tier === 'moderate' && (
+          <Text style={s.lastCheckinText}>
+            Last check-in <Text style={s.bold}>{relativeDayLabel(lastCheckinDate)}</Text> — {worst.name} felt a bit tougher than usual.
+          </Text>
+        )}
+        {worst.tier === 'attention' && (
+          <Text style={s.lastCheckinText}>
+            Last check-in <Text style={s.bold}>{relativeDayLabel(lastCheckinDate)}</Text> — {worst.name} needed extra attention.
+          </Text>
+        )}
+      </View>
+      {showCareTeamCta && (
+        <TouchableOpacity
+          style={s.careTeamLink}
+          onPress={onPressCareTeam}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chatbubble-outline" size={13} color={C.teal} />
+          <Text style={s.careTeamLinkText}>Talk to your Care Team</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 function NextUpCard({ nextItem, onPress }) {
   if (!nextItem) {
@@ -317,20 +426,11 @@ function NextUpCard({ nextItem, onPress }) {
     );
   }
 
-  const isAppt = nextItem.kind === 'appointment';
   const data = nextItem.data;
   const date = new Date(nextItem.when);
   const day = String(date.getDate()).padStart(2, '0');
   const mon = MONTHS[date.getMonth()];
-
-  const subtitleParts = [];
-  if (isAppt) {
-    if (data.doctor) subtitleParts.push(data.doctor);
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    subtitleParts.push(data.location ? `${data.location} · ${time}` : time);
-  } else {
-    subtitleParts.push(`${(data.type || 'Reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`);
-  }
+  const subtitle = `${(data.type || 'Reminder').toUpperCase()} · Due ${date.toLocaleDateString()}`;
 
   return (
     <TouchableOpacity style={s.apptCard} onPress={onPress} activeOpacity={0.7}>
@@ -340,8 +440,7 @@ function NextUpCard({ nextItem, onPress }) {
       </View>
       <View style={{ flex: 1, marginLeft: 14 }}>
         <Text style={s.apptTitle} numberOfLines={2}>{data.title}</Text>
-        {subtitleParts[0] ? <Text style={s.apptSub} numberOfLines={1}>{subtitleParts[0]}</Text> : null}
-        {subtitleParts[1] ? <Text style={s.apptSub} numberOfLines={1}>{subtitleParts[1]}</Text> : null}
+        <Text style={s.apptSub} numberOfLines={1}>{subtitle}</Text>
       </View>
       <Text style={s.chevron}>›</Text>
     </TouchableOpacity>
@@ -356,7 +455,7 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 14,
@@ -368,72 +467,109 @@ const s = StyleSheet.create({
   name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 2, lineHeight: 22 },
   bellBtn: { padding: 4 },
 
-  // ── Status card (body) ──
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDF7F2',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  statusDeco: {
-    position: 'absolute',
-    right: -14,
-    top: -14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  decoHeart: { fontSize: 90, opacity: 0.18 },
-  decoPlus: {
-    position: 'absolute',
-    fontSize: 32,
-    fontWeight: '900',
-    color: colors.primary,
-    opacity: 0.25,
-    top: 20,
-    right: 18,
-  },
-  statusLabel: { fontSize: 11, color: C.muted, marginBottom: 3 },
-  statusTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 3, lineHeight: 22 },
-  statusHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
-  logBtn: {
-    alignSelf: 'center',
-    marginLeft: 10,
-    borderWidth: 1.5,
-    borderColor: C.teal,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  logBtnText: { color: C.teal, fontSize: 11, fontWeight: '700' },
-
   // ── Body ──
   body: { flex: 1 },
   bodyContent: { padding: 14, paddingBottom: 40 },
 
-  // ── Weekly report card ──
-  weeklyCard: {
+  // ── Today hero ──
+  todayHero: {
+    backgroundColor: '#EDF7F2',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  todayHeroTouchable: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  todayHeroGradient: {
+    borderRadius: 16,
+    padding: 16,
+  },
+  heroIllustration: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  heroTextWrap: { paddingRight: 72 },
+  heroRow: { flexDirection: 'row', alignItems: 'center' },
+  heroEyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6, color: C.teal, textTransform: 'uppercase', marginBottom: 2 },
+  heroTitle: { fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 3, lineHeight: 21 },
+  heroHint: { fontSize: 12, color: C.textSub, lineHeight: 17 },
+  heroCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    alignSelf: 'flex-start',
+    backgroundColor: C.teal,
+    borderRadius: 24,
+    paddingLeft: 18,
+    paddingRight: 6,
+    paddingVertical: 6,
+    marginTop: 14,
   },
-  weeklyIconBox: {
-    width: 44, height: 44, borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+  heroCtaText: { color: colors.white, fontSize: 12, fontWeight: '800', marginRight: 10 },
+  heroCtaIcon: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.white,
     alignItems: 'center', justifyContent: 'center',
   },
-  weeklyTitle: { fontSize: 14, fontWeight: '700', color: C.text },
-  weeklySub: { fontSize: 12, color: C.muted, marginTop: 2 },
+
+  lastCheckin: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(20,116,158,0.12)',
+  },
+  lastCheckinRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  lastCheckinText: { flex: 1, fontSize: 11.5, color: C.textSub, lineHeight: 17 },
+  bold: { fontWeight: '700', color: C.text },
+  careTeamLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  careTeamLinkText: { fontSize: 12, fontWeight: '700', color: C.teal },
+
+  // ── Medications Today ── tinted fill + real elevation, no border: this is
+  // a status/data card (per-item taken/pending), not a bare wayfinding link.
+  medsCard: {
+    backgroundColor: colors.marigoldTint,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    ...shadows.sm,
+  },
+  medsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  medsViewAll: { fontSize: 12, fontWeight: '700', color: C.teal },
+  medsEmptyText: { fontSize: 12, color: C.muted, paddingVertical: 4 },
+  medItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.border,
+    gap: 10,
+  },
+  medItemTime: { fontSize: 11, color: C.muted, width: 62 },
+  medItemName: { flex: 1, fontSize: 13, fontWeight: '600', color: C.text },
+  medStatusDone: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  medStatusDoneText: { fontSize: 11, fontWeight: '700', color: C.green },
+  medStatusPending: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  medStatusPendingText: { fontSize: 11, fontWeight: '700', color: C.amber },
+
+  // ── Weekly Report + Care Team: one plain list, no card chrome at all — two
+  // pure navigation rows collapsed per Design DNA v2 §14.3/14.4 (the flagged
+  // "three identical bordered boxes" was the medsCard/weeklyCard/careRow trio).
+  navList: { marginBottom: 18 },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  navDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border },
+  navIconBox: {
+    width: 40, height: 40, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navRowTitle: { fontSize: 14, fontWeight: '700', color: C.text },
+  navRowSub: { fontSize: 12, color: C.muted, marginTop: 2 },
 
   // ── Section label ──
   sectionLabel: {
@@ -442,85 +578,29 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // ── Quick actions grid ──
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 18,
-  },
-  quickItem: {
-    width: '22%',
-    flexGrow: 1,
-    backgroundColor: C.card,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  quickIconBox: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickIcon: { fontSize: 22 },
-  quickIconImg: { width: 26, height: 26, resizeMode: 'contain' },
-  quickLabel: {
-    fontSize: 10, fontWeight: '600', color: C.text,
-    textAlign: 'center', lineHeight: 13,
-  },
-
-  // ── Alert cards ──
-  alertCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    gap: 10,
-  },
-  alertIcon: { fontSize: 16, marginTop: 1 },
-  alertTitle: { fontSize: 12, fontWeight: '700', color: C.text, marginBottom: 3 },
-  alertDesc: { fontSize: 11, color: C.muted, lineHeight: 16 },
-
   // ── Next Up ──
   nextEmpty: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.card,
+    backgroundColor: colors.primarySurface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.sm,
   },
-  nextEmptyIcon: { fontSize: 36 },
   nextEmptyTitle: { fontSize: 14, fontWeight: '600', color: C.text, marginBottom: 3 },
   nextEmptySub: { fontSize: 12, color: C.muted },
 
   apptCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.card,
+    backgroundColor: colors.primarySurface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 18,
     borderLeftWidth: 3,
     borderLeftColor: C.teal,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.sm,
   },
   apptDateBox: {
     backgroundColor: C.tealPale,

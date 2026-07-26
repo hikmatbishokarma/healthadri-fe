@@ -10,24 +10,54 @@ import {
   StatusBar,
   Animated,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSymptoms, submitSymptomEntry, getLatestSymptomEntry } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import FaceScale from '../components/FaceScale';
+import SymptomIconScene from '../components/SymptomIconScene';
 import TopSymptoms from '../components/TopSymptoms';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
 
 const C = {
-  teal: colors.primary,
-  tealDark: colors.primaryDarkest,
-  tealPale: colors.primaryTint,
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  primary: colors.primary,
+  primaryDark: colors.primaryDark,
+  primaryDarkest: colors.primaryDarkest,
+  primaryTint: colors.primaryTint,
+  bg: colors.background,
+  card: colors.surface,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
   disabled: '#CBD5E1',
 };
+
+// The Arc — one blade of the logo's four-blade mark, used on its own as a
+// quiet background flourish. A partial ring (never closed), drawn with a
+// dash/gap on the stroke so no path math is needed for the sweep.
+function ArcFlourish({ size, color, opacity, style, strokeWidth = 7, sweep = 0.72 }) {
+  const r = size / 2 - strokeWidth;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  return (
+    <View style={[{ width: size, height: size }, style]} pointerEvents="none">
+      <Svg width={size} height={size}>
+        <Circle
+          cx={c}
+          cy={c}
+          r={r}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference * sweep} ${circumference}`}
+          fill="none"
+          opacity={opacity}
+        />
+      </Svg>
+    </View>
+  );
+}
 
 const PROMPTS = {
   Pain: 'How much pain do you have today?',
@@ -148,21 +178,10 @@ export default function SymptomScreen({ navigation }) {
     }
   };
 
-  const goNext = () => {
-    const current = symptoms[step];
-    if (valuesRef.current[current?._id] === undefined) return;
-    if (autoTimer.current) clearTimeout(autoTimer.current);
-    if (step === symptoms.length - 1) {
-      handleSave();
-    } else {
-      setStep((s) => s + 1);
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={C.teal} />
+        <ActivityIndicator color={C.primary} />
       </View>
     );
   }
@@ -180,18 +199,23 @@ export default function SymptomScreen({ navigation }) {
     const triggered = savedAlerts;
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
-        <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
+        <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+        <ArcFlourish size={220} color={colors.primaryVivid} opacity={0.55} style={styles.bgCircleTop} />
+        <ArcFlourish size={240} color={colors.accentVivid} opacity={0.5} style={styles.bgCircleBottom} />
+
+        <SafeAreaView edges={['top']}>
           <View style={styles.header}>
-            <View style={{ width: 32 }} />
+            <View style={{ width: 36 }} />
             <Text style={styles.headerTitle}>Saved</Text>
-            <View style={{ width: 32 }} />
+            <View style={{ width: 36 }} />
           </View>
         </SafeAreaView>
 
         <View style={styles.body}>
           <View style={styles.savedCard}>
-            <Ionicons name="checkmark-circle" size={48} color="#16A34A" style={styles.savedIcon} />
+            <View style={styles.savedIconRing}>
+              <Ionicons name="checkmark-circle" size={44} color={colors.success} />
+            </View>
             <Text style={styles.savedTitle}>
               {triggered.length > 0 ? "We'll check in with you" : 'Thank you!'}
             </Text>
@@ -227,7 +251,7 @@ export default function SymptomScreen({ navigation }) {
                 <Text style={styles.guidanceTitle}>What to expect next</Text>
                 {savedGuidance.map((g, i) => (
                   <View key={i} style={styles.guidanceRow}>
-                    <Ionicons name="checkmark" size={14} color="#16A34A" style={styles.guidanceCheck} />
+                    <Ionicons name="checkmark" size={14} color={colors.success} style={styles.guidanceCheck} />
                     <Text style={styles.guidanceText}>{g}</Text>
                   </View>
                 ))}
@@ -242,11 +266,12 @@ export default function SymptomScreen({ navigation }) {
           </View>
         </View>
 
-        <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.card }}>
+        <SafeAreaView edges={['bottom']}>
           <View style={styles.navBar}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={[styles.navBtn, styles.navNext]}
+              activeOpacity={0.85}
             >
               <Text style={styles.navNextText}>Done</Text>
             </TouchableOpacity>
@@ -265,38 +290,41 @@ export default function SymptomScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
 
-      <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
+      <SafeAreaView edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+          <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.8}>
+            <Ionicons name="chevron-back" size={20} color={C.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>How are you today?</Text>
-          <View style={styles.langBadge}>
-            <Text style={styles.langText}>EN</Text>
-          </View>
         </View>
 
-        {/* Animated progress bar — works for any number of symptoms */}
-        <View style={styles.progressTrack}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
+        <View style={styles.progressSection}>
+          <View style={styles.progressRow}>
+            <View />
+            <Text style={styles.stepLabel}>
+              {step + 1} / {total}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
         </View>
       </SafeAreaView>
 
       {alreadyCheckedIn && (
         <View style={styles.resubmitBanner}>
-          <Ionicons name="checkmark-circle" size={16} color="#92400E" />
+          <Ionicons name="checkmark-circle" size={16} color={colors.warningStrong} />
           <Text style={styles.resubmitText}>
             You already checked in today. Submit again only if your symptoms have changed.
           </Text>
@@ -304,55 +332,53 @@ export default function SymptomScreen({ navigation }) {
       )}
 
       <View style={styles.body}>
-        <Text style={styles.stepLabel}>
-          {step + 1} / {total}
+        <Text style={styles.eyebrow}>Today's check-in</Text>
+        <SymptomIconScene name={current.name} />
+
+        <Text style={styles.symptomName}>{current.name}</Text>
+        <Text style={styles.prompt}>
+          {PROMPTS[current.name] || 'Tap the face that matches how you feel.'}
         </Text>
 
-        <View style={styles.questionCard}>
-          <Text style={styles.symptomName}>{current.name}</Text>
-          <Text style={styles.prompt}>
-            {PROMPTS[current.name] || 'Tap the face that matches how you feel.'}
-          </Text>
+        <FaceScale
+          value={currentValue}
+          onChange={(v) => handleFaceSelect(current._id, v)}
+        />
 
-          <FaceScale
-            value={currentValue}
-            onChange={(v) => handleFaceSelect(current._id, v)}
-          />
-
-          <Text style={[styles.hint, hasAnswered && styles.hintAnswered]}>
-            {hasAnswered ? 'Moving on in a moment…' : 'Tap a face to continue'}
-          </Text>
+        <View style={styles.feedbackRow}>
+          {submitting ? (
+            <>
+              <ActivityIndicator size="small" color={C.primary} />
+              <Text style={[styles.hint, styles.hintAnswered]}>Saving your check-in…</Text>
+            </>
+          ) : hasAnswered ? (
+            <>
+              <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+              <Text style={[styles.hint, styles.hintAnswered]}>
+                {isLast ? 'Recorded — saving your check-in' : 'Recorded — moving on in a moment'}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.hint}>Tap a face to continue</Text>
+          )}
         </View>
       </View>
 
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }}>
+      <SafeAreaView edges={['bottom']}>
         {saveError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>Could not save: {saveError}</Text>
           </View>
         )}
         <View style={styles.navBar}>
-          <TouchableOpacity onPress={goBack} style={[styles.navBtn, styles.navBack]}>
-            <Text style={styles.navBackText}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={[styles.navBtn, step === 0 ? styles.navGhost : styles.navBack]}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navBackText, step === 0 && styles.navGhostText]}>
               {step === 0 ? 'Cancel' : 'Back'}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={goNext}
-            disabled={!hasAnswered || submitting}
-            style={[
-              styles.navBtn,
-              styles.navNext,
-              (!hasAnswered || submitting) && styles.navNextDisabled,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.navNextText}>
-                {isLast ? 'Save' : 'Next'}
-              </Text>
-            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -361,155 +387,200 @@ export default function SymptomScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.bg, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
 
+  bgCircleTop: { position: 'absolute', top: -90, right: -70 },
+  bgCircleBottom: { position: 'absolute', bottom: -100, left: -80 },
+
   header: {
-    backgroundColor: C.teal,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 4,
     gap: 10,
   },
   backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.card,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
-  langBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  langText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-
-  progressTrack: {
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  progressFill: {
-    height: 3,
-    backgroundColor: '#fff',
-    borderRadius: 2,
-  },
-
-  body: { flex: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-
-  stepLabel: {
-    fontSize: 12,
-    color: C.muted,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 16,
-    letterSpacing: 0.5,
-  },
-
-  questionCard: {
-    backgroundColor: C.card,
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: C.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    outlineStyle: 'none',
+  },
+  headerTitle: { color: C.text, fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center' },
+
+  progressSection: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: spacing.xs,
+  },
+  stepLabel: {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    fontVariant: ['tabular-nums'],
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceSubtle,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.primary,
+  },
+
+  body: { flex: 1, paddingHorizontal: 24, paddingTop: 18, alignItems: 'stretch', justifyContent: 'center' },
+
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.muted,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.md,
   },
   symptomName: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '700',
     color: C.text,
     textAlign: 'center',
     letterSpacing: -0.5,
-    marginBottom: 6,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   prompt: {
-    fontSize: 14,
+    fontSize: 15,
     color: C.muted,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 28,
+    lineHeight: 21,
+    marginBottom: spacing.xl,
+    paddingHorizontal: 8,
+  },
+  feedbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.lg,
+    minHeight: 18,
   },
   hint: {
-    fontSize: 11,
+    fontSize: 12,
     color: C.muted,
     textAlign: 'center',
-    marginTop: 20,
-    fontStyle: 'italic',
   },
   hintAnswered: {
-    color: C.teal,
-    opacity: 0.8,
+    color: C.primary,
+    fontWeight: '600',
   },
 
   navBar: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
+    gap: 12,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 12,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
+    paddingBottom: 14,
   },
   navBtn: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: 26,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    outlineStyle: 'none',
   },
-  navBack: { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border },
+  navBack: { backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
   navBackText: { color: C.text, fontWeight: '700', fontSize: 14 },
-  navNext: { backgroundColor: C.teal, flex: 1.5 },
-  navNextDisabled: { backgroundColor: C.disabled },
-  navNextText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  navGhost: { backgroundColor: 'transparent' },
+  navGhostText: { color: C.muted },
+  navNext: {
+    backgroundColor: C.primary,
+    flex: 1.5,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  navNextDisabled: {
+    backgroundColor: C.disabled,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  navNextText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   resubmitBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF3C7',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FDE68A',
-    paddingHorizontal: 16,
+    backgroundColor: colors.warningTint,
+    borderWidth: 1,
+    borderColor: '#FDE9C4',
+    borderRadius: 14,
+    marginHorizontal: 20,
+    marginTop: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
   },
   resubmitText: { color: '#92400E', fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 17 },
 
   errorBanner: {
-    backgroundColor: '#FEE2E2',
-    borderTopWidth: 1,
-    borderTopColor: '#FECACA',
-    paddingHorizontal: 16,
+    backgroundColor: colors.dangerTint,
+    borderWidth: 1,
+    borderColor: '#EDD2CE',
+    borderRadius: 14,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  errorText: { color: '#B91C1C', fontSize: 12, fontWeight: '600' },
+  errorText: { color: colors.danger, fontSize: 12, fontWeight: '600' },
 
   savedCard: {
     backgroundColor: C.card,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
+    shadowColor: colors.primaryDarkest,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
   },
-  savedIcon: { fontSize: 56, marginBottom: 10 },
+  savedIconRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.successTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   savedTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: C.text,
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   savedMessage: {
     fontSize: 14,
@@ -519,42 +590,41 @@ const styles = StyleSheet.create({
   },
   alertList: {
     alignSelf: 'stretch',
-    backgroundColor: C.tealPale,
-    borderRadius: 12,
+    backgroundColor: C.primaryTint,
+    borderRadius: 14,
     padding: 14,
     marginTop: 16,
     gap: 6,
   },
   alertRow: { flexDirection: 'row', gap: 8 },
-  alertBullet: { color: C.teal, fontSize: 14, fontWeight: '700' },
+  alertBullet: { color: C.primary, fontSize: 14, fontWeight: '700' },
   alertText: { color: C.text, fontSize: 13, flex: 1 },
 
   guidanceBlock: {
     alignSelf: 'stretch',
     marginTop: 16,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 14,
+    backgroundColor: colors.successTint,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#BBF7D0',
     padding: 16,
     gap: 8,
   },
   guidanceTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#15803D',
     marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   guidanceRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  guidanceCheck: { color: '#16A34A', fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  guidanceCheck: { marginTop: 2 },
   guidanceText: { color: '#166534', fontSize: 13, flex: 1, lineHeight: 19 },
   savedHint: {
     fontSize: 12,
     color: C.muted,
     textAlign: 'center',
     marginTop: 14,
-    fontStyle: 'italic',
   },
 });

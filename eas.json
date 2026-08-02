@@ -9,7 +9,12 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_USE_FIREBASE": "false",
+        "EXPO_PUBLIC_API_URL": "http://apihealthadri.i2space.in",
+        "EXPO_PUBLIC_WEB_URL": "http://healthadri.i2space.in"
+      }
     },
     "production": {
       "autoIncrement": true,

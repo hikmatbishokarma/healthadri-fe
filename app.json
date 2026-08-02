@@ -19,7 +19,16 @@
           "color": "#0D4035"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "./plugins/withCleartextTraffic.js"
     ],
     "ios": {
       "supportsTablet": true,

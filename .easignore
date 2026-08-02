@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.DS_Store
+
+# Environment files — never commit
+.env
+.env.*
+!.env.example
+
+# Secrets & credentials — must never enter version control.
+# google-services.json is intentionally NOT ignored here: EAS cloud builds
+# need it, and it is embedded in the distributed APK anyway (not a secret).
+serviceAccountKey.json
+GoogleService-Info.plist
+*.keystore
+!android/app/debug.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision

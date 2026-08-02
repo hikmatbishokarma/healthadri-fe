@@ -14,10 +14,10 @@ const C = {
   primary: colors.primary,
   text: '#0F172A',
   textSub: '#475569',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  bg: '#F8FAFC',
-  white: '#FFFFFF',
+  textMuted: colors.textMuted,
+  border: colors.border,
+  bg: colors.surfaceMuted,
+  white: colors.white,
 };
 
 export default function SearchableDropdown({ placeholder, onSearch, onSelect }) {
@@ -116,7 +116,7 @@ const s = StyleSheet.create({
     borderColor: C.border,
     borderRadius: 10,
     marginTop: 4,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,

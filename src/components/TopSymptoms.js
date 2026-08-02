@@ -1,15 +1,16 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
 
 // Reuses the exact same severity thresholds as WeeklyReportScreen.js's
 // getColor() (≥8 high, ≥5 medium, else low) so this stays consistent with
 // the Weekly Report's legend rather than inventing a second severity scale
 // for the same underlying data.
 const C = {
-  text: '#1A1A2E',
-  muted: '#64748B',
-  green: '#22C55E',
-  amber: '#F59E0B',
-  red: '#EF4444',
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  green: colors.successStrong,
+  amber: colors.warning,
+  red: colors.danger,
 };
 
 function tierFor(value) {
@@ -64,10 +65,10 @@ export default function TopSymptoms({ responses, max = 4 }) {
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 18,
   },

@@ -23,19 +23,19 @@ const C = {
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
   tealMid: '#B2D8CF',
-  amber: '#F59E0B',
-  amberPale: '#FEF3C7',
-  red: '#EF4444',
+  amber: colors.warning,
+  amberPale: colors.warningTint,
+  red: colors.danger,
   redPale: '#FEE2E2',
-  green: '#22C55E',
-  greenPale: '#DCFCE7',
-  gray: '#64748B',
-  grayPale: '#F1F5F9',
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  green: colors.successStrong,
+  greenPale: colors.successTint,
+  gray: colors.textSecondary,
+  grayPale: colors.surfaceSubtle,
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
 };
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -192,7 +192,7 @@ export default function AiExplainerScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Ask the AI Explainer</Text>
@@ -239,7 +239,7 @@ export default function AiExplainerScreen({ navigation }) {
               onPress={() => setAttachedFile(null)}
               style={styles.fileChipClose}
             >
-              <Ionicons name="close" size={14} color="#64748B" />
+              <Ionicons name="close" size={14} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -275,7 +275,7 @@ export default function AiExplainerScreen({ navigation }) {
               ]}
             >
               {sending ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <Text style={styles.sendBtnText}>Send</Text>
               )}
@@ -310,7 +310,7 @@ function BotBubble({ text, type }) {
   return (
     <View style={styles.botRow}>
       <View style={styles.botAvatar}>
-        <Ionicons name="sparkles-outline" size={18} color="#fff" />
+        <Ionicons name="sparkles-outline" size={18} color={colors.white} />
       </View>
       <View style={styles.botBubble}>
         <View style={[styles.typePill, { backgroundColor: meta.bg }]}>
@@ -327,7 +327,7 @@ function TypingBubble() {
   return (
     <View style={styles.botRow}>
       <View style={styles.botAvatar}>
-        <Ionicons name="sparkles-outline" size={18} color="#fff" />
+        <Ionicons name="sparkles-outline" size={18} color={colors.white} />
       </View>
       <View style={[styles.botBubble, styles.typingBubble]}>
         <ActivityIndicator color={C.teal} size="small" />
@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backIcon: { color: colors.white, fontSize: 18, lineHeight: 20 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700' },
   headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
 
   body: { flex: 1 },
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     maxWidth: '82%',
   },
-  userText: { color: '#fff', fontSize: 14, lineHeight: 19 },
+  userText: { color: colors.white, fontSize: 14, lineHeight: 19 },
   userFileRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   userFileIcon: { fontSize: 12 },
-  userFileName: { color: '#fff', fontSize: 11, fontWeight: '600', flex: 1 },
+  userFileName: { color: colors.white, fontSize: 11, fontWeight: '600', flex: 1 },
 
   botRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   botAvatar: {
@@ -489,5 +489,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  sendBtnText: { color: colors.white, fontSize: 13, fontWeight: '700' },
 });

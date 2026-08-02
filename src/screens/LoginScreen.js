@@ -43,11 +43,13 @@ const ROLES = [
     icon: 'fitness-outline',
   },
   {
+    // Backend role value stays 'caregiver' (auth + invite-link contract);
+    // only the user-facing label is "Caretaker".
     key: 'caregiver',
-    label: 'Caregiver',
+    label: 'Caretaker',
     desc: "Support my loved one's journey",
-    color: '#2563EB',
-    bg: '#EFF6FF',
+    color: colors.accentBlue,
+    bg: colors.accentBlueTint,
     icon: 'people-outline',
   },
 ];
@@ -207,7 +209,7 @@ export default function LoginScreen() {
                 <Text style={s.roleCardDesc}>{r.desc}</Text>
               </View>
               <View style={[s.roleChevron, { backgroundColor: r.color }]}>
-                <Ionicons name="chevron-forward" size={14} color="#fff" />
+                <Ionicons name="chevron-forward" size={14} color={colors.white} />
               </View>
             </TouchableOpacity>
           ))}
@@ -298,7 +300,7 @@ export default function LoginScreen() {
             {/* Button */}
             <TouchableOpacity style={s.primaryBtn} onPress={handleSendOtp} disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
                   <View style={{ width: 34 }} />
@@ -311,7 +313,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <View style={s.lockNotice}>
-              <Ionicons name="lock-closed-outline" size={13} color="#94A3B8" />
+              <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
               <Text style={s.lockNoticeText}> We never share your number with anyone</Text>
             </View>
 
@@ -364,11 +366,11 @@ export default function LoginScreen() {
               <View style={s.shieldIconWrap}>
                 <Ionicons name="shield" size={90} color={colors.primary} />
                 <View style={s.lockOnShield}>
-                  <Ionicons name="lock-closed" size={30} color="#fff" />
+                  <Ionicons name="lock-closed" size={30} color={colors.white} />
                 </View>
               </View>
               <View style={s.checkCircleBadge}>
-                <Ionicons name="checkmark-circle" size={34} color="#22C55E" />
+                <Ionicons name="checkmark-circle" size={34} color={colors.successStrong} />
               </View>
               <Text style={[s.plusDeco, { top: 12, left: 14 }]}>+</Text>
               <Text style={[s.plusDeco, { top: 4, right: 18 }]}>+</Text>
@@ -424,7 +426,7 @@ export default function LoginScreen() {
               disabled={loading || otp.length < 4}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
                   <View style={{ width: 34 }} />
@@ -489,7 +491,7 @@ export default function LoginScreen() {
                 Platform.OS === 'web' && { outline: 'none', border: 'none', backgroundColor: 'transparent' },
               ]}
               placeholder="e.g. HX-4829"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               value={inviteCode}
               onChangeText={setInviteCode}
@@ -502,7 +504,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity style={s.primaryBtn} onPress={handleCaregiverLink} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <>
                 <View style={{ width: 34 }} />
@@ -515,7 +517,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <View style={s.lockNotice}>
-            <Ionicons name="lock-closed-outline" size={13} color="#94A3B8" />
+            <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
             <Text style={s.lockNoticeText}> Your link is end-to-end encrypted</Text>
           </View>
         </ScrollView>
@@ -543,7 +545,7 @@ const s = StyleSheet.create({
   welcomeSub: { fontSize: 13, color: '#7A9E96', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 
   roleCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
     borderRadius: 16, padding: 16, marginBottom: 12, gap: 14,
     ...Platform.select({
       ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
@@ -552,7 +554,7 @@ const s = StyleSheet.create({
   },
   roleIconWrap: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   roleCardBody: { flex: 1 },
-  roleIamA: { fontSize: 11, color: '#94A3B8', marginBottom: 2 },
+  roleIamA: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },
   roleCardTitle: { fontSize: 17, fontWeight: '700', marginBottom: 2 },
   roleCardDesc: { fontSize: 12, color: '#7A8E9E', lineHeight: 17 },
   roleChevron: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
@@ -562,22 +564,22 @@ const s = StyleSheet.create({
     borderRadius: 12, padding: 14, gap: 12, marginTop: 4, marginBottom: 20,
   },
   securityIconWrap: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.white,
     alignItems: 'center', justifyContent: 'center',
   },
   securityTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
   securityDesc: { fontSize: 11, color: colors.textSecondary, lineHeight: 16 },
-  termsLight: { fontSize: 11, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
+  termsLight: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
   termsLink: { color: colors.primary, fontWeight: '600' },
 
   // ── Shared step styles ──────────────────────────────────────────────────────
   backBtn: {
     margin: 16,
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center',
     alignSelf: 'flex-start',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+      ios: { shadowColor: colors.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
       android: { elevation: 2 },
     }),
   },
@@ -601,7 +603,7 @@ const s = StyleSheet.create({
   shieldBadge: {
     position: 'absolute', bottom: 8, right: 8,
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center',
     ...Platform.select({
       ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6 },
       android: { elevation: 3 },
@@ -626,7 +628,7 @@ const s = StyleSheet.create({
   phoneInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 20,
     width: '100%',
     height: 64,
@@ -698,7 +700,7 @@ const s = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#E2EFE9',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     fontSize: 26,
     fontWeight: '700',
     color: colors.primaryDark,
@@ -714,7 +716,7 @@ const s = StyleSheet.create({
 
   // Countdown / resend
   resendRow: { marginBottom: 24 },
-  resendText: { fontSize: 13, color: '#94A3B8', textAlign: 'center' },
+  resendText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   countdown: { color: colors.primary, fontWeight: '700' },
   resendLink: { fontSize: 13, color: colors.primary, fontWeight: '600', textAlign: 'center' },
 
@@ -733,7 +735,7 @@ const s = StyleSheet.create({
   },
   secureIconWrap: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center',
   },
   secureTitle: { fontSize: 13, fontWeight: '600', color: colors.primaryDark, marginBottom: 2 },
   secureDesc: { fontSize: 11, color: colors.textSecondary },
@@ -753,15 +755,15 @@ const s = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 16, flex: 1, textAlign: 'center' },
+  primaryBtnText: { color: colors.white, fontWeight: '700', fontSize: 16, flex: 1, textAlign: 'center' },
   btnArrow: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center',
   },
 
   // Lock notice
   lockNotice: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  lockNoticeText: { fontSize: 12, color: '#94A3B8' },
+  lockNoticeText: { fontSize: 12, color: colors.textMuted },
 
   fieldLabel: {
     fontSize: 12,

@@ -13,12 +13,12 @@ const C = {
   primary: colors.primary,
   primaryLight: colors.primaryTint,
   text: '#0F172A',
-  textSub: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  bg: '#F9FAFB',
-  white: '#FFFFFF',
-  error: '#EF4444',
+  textSub: colors.textSecondary,
+  textMuted: colors.textMuted,
+  border: colors.border,
+  bg: colors.backgroundAlt,
+  white: colors.white,
+  error: colors.danger,
 };
 
 const RELATIONSHIPS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Other'];
@@ -215,14 +215,14 @@ const s = StyleSheet.create({
 
   phonePrefix: {
     paddingHorizontal: 14, paddingVertical: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceMuted,
     borderRightWidth: 1.5, borderRightColor: C.border, justifyContent: 'center',
   },
   phonePrefixText: { fontSize: 15, fontWeight: '600', color: C.textSub },
 
   infoBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#F8FAFC', borderRadius: 10, padding: 14, marginTop: 20,
+    backgroundColor: colors.surfaceMuted, borderRadius: 10, padding: 14, marginTop: 20,
     borderWidth: 1, borderColor: C.border,
   },
   infoText: { flex: 1, fontSize: 13, color: C.textSub, lineHeight: 19 },

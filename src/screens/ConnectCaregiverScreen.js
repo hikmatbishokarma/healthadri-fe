@@ -14,12 +14,12 @@ const C = {
   primaryLight: colors.primaryTint,
   primaryDark: colors.primaryDarkest,
   text: '#0F172A',
-  textSub: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  bg: '#F9FAFB',
-  white: '#FFFFFF',
-  error: '#EF4444',
+  textSub: colors.textSecondary,
+  textMuted: colors.textMuted,
+  border: colors.border,
+  bg: colors.backgroundAlt,
+  white: colors.white,
+  error: colors.danger,
 };
 
 export default function ConnectCaregiverScreen({ navigation }) {
@@ -149,7 +149,7 @@ export default function ConnectCaregiverScreen({ navigation }) {
                 <ShareRow
                   icon="qr-code-outline"
                   iconBg="#F59E0B20"
-                  iconColor="#F59E0B"
+                  iconColor={colors.warning}
                   label="Share Link"
                   onPress={handleShareLink}
                   last

@@ -19,13 +19,13 @@ const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
-  bluePale: '#EFF6FF',
-  blue: '#2563EB',
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  bluePale: colors.accentBlueTint,
+  blue: colors.accentBlue,
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
 };
 
 const FILTERS = [
@@ -45,7 +45,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
     (async () => {
       try {
         const res = await getHospitals();
-        setHospitals(res.data || []);
+        setHospitals(res.data?.data || []);
       } catch {
         setHospitals([]);
       } finally {
@@ -76,7 +76,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={22} color="#fff" />
+              <Ionicons name="chevron-back" size={22} color={colors.white} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Find a Hospital</Text>
             <View style={styles.langBadge}>
@@ -84,7 +84,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
             </View>
           </View>
           <View style={styles.searchBar}>
-            <Ionicons name="search-outline" size={16} color="#94A3B8" style={styles.searchIcon} />
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} style={styles.searchIcon} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -118,7 +118,7 @@ export default function HospitalDirectoryScreen({ navigation }) {
                 <Text
                   style={[
                     styles.filterChipText,
-                    active ? { color: '#fff' } : { color: C.muted },
+                    active ? { color: colors.white } : { color: C.muted },
                   ]}
                 >
                   {f.label}
@@ -207,15 +207,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  backIcon: { color: colors.white, fontSize: 18, lineHeight: 20 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700', flex: 1 },
   langBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  langText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  langText: { color: colors.white, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
 
   searchBar: {
     flexDirection: 'row',
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, fontSize: 12, color: '#fff', padding: 0 },
+  searchInput: { flex: 1, fontSize: 12, color: colors.white, padding: 0 },
 
   filterRow: {
     backgroundColor: C.bg,

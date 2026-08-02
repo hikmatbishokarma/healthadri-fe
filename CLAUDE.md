@@ -44,11 +44,16 @@ src/
 
 ## Brand & Style
 
-- **Primary teal**: `#1A6B5A` (headers, active states, primary buttons)
-- **Dark background**: `#0D4035` (loading screen, dark areas)
-- Consistent spacing units: `8`, `16`, `24`, `32`
-- Mobile-first, thumb-friendly touch targets (minimum 44px height)
-- Do not introduce new brand colors without design sign-off.
+Design tokens live in `src/theme/` (`colors.js`, `spacing.js`, `radius.js`, `typography.js`, `shadows.js`) — import from `../theme`, never hardcode hex in a screen. Full rationale: the HealthAdri Design DNA report.
+
+- **Brand hue family**: blue + gold, sampled from the logo's pinwheel mark. Each ships in two tiers:
+  - **Calm** (`colors.primary` `#145E78`, `colors.marigold` `#C3881F`) — floods daily UI: buttons, headers, active states.
+  - **Vivid** (`colors.primaryVivid` `#1B8FBF`, `colors.accentVivid` `#F7B500`) — reserved for brand moments only: app icon, splash, small marks, decorative flourishes (see the Arc motif in `SymptomScreen.js`).
+- **Critical/danger** (`colors.danger`) is a muted brick (`#C1544B`), not a saturated red — serious without reading as alarming.
+- Consistent spacing units: `8`, `16`, `24`, `32` (see `spacing.js`).
+- Mobile-first, thumb-friendly touch targets (minimum 44px height).
+- Buttons are pill-shaped (`radius.pill`); cards use soft, warm-tinted shadows (`shadows.js`), never pure black.
+- Do not introduce new brand colors without design sign-off — this palette has it; anything outside this hue family still needs one.
 
 ---
 

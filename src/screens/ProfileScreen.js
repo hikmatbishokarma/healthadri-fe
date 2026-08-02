@@ -27,12 +27,13 @@ const C = {
   primaryDark: colors.primaryDarkest,
   primaryLight: colors.primaryTint,
   text: '#0F172A',
-  textSub: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  bg: '#F9FAFB',
-  white: '#FFFFFF',
-  errorText: '#EF4444',
+  textSub: colors.textSecondary,
+  textMuted: colors.textMuted,
+  border: colors.border,
+  bg: colors.backgroundAlt,
+  white: colors.white,
+  black: colors.black,
+  errorText: colors.danger,
 };
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -62,12 +63,71 @@ const CANCER_STAGES = [
 
 const TREATMENT_STATUS = [
   { value: 'newly-diagnosed', label: 'Newly Diagnosed' },
-  { value: 'under-treatment', label: 'Under Treatment' },
-  { value: 'completed', label: 'Completed Treatment' },
-  { value: 'follow-up', label: 'Follow-up / Surveillance' },
+  { value: 'awaiting-surgery', label: 'Awaiting Surgery' },
+  { value: 'chemo-radiation', label: 'Chemotherapy / Radiation' },
+  { value: 'post-treatment', label: 'Post-Treatment' },
 ];
 
 const CAREGIVER_RELATIONSHIPS = ['Spouse', 'Child', 'Parent', 'Sibling', 'Friend', 'Other'];
+
+// Shows cancerStage unconditionally today — no disclosedToPatient check exists yet.
+// Kept in code, hidden from patients until the disclosure model is confirmed with the client.
+const SHOW_TREATMENT_TIMELINE = false;
+
+// Matches the backend enum order (`user.schema.ts`) and the navigator-facing
+// wording in `ActiveCarePlans.tsx`'s `getTreatment()`.
+const TREATMENT_TIMELINE_ORDER = ['newly-diagnosed', 'awaiting-surgery', 'chemo-radiation', 'post-treatment'];
+
+function formatDiagnosisDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isoToDDMMYYYY(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+function ddmmyyyyToISO(ddmmyyyy) {
+  if (!ddmmyyyy) return '';
+  const [d, m, y] = ddmmyyyy.split('/');
+  if (!d || !m || !y) return '';
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function getTreatmentTimeline(user) {
+  const currentIndex = Math.max(TREATMENT_TIMELINE_ORDER.indexOf(user?.treatmentStatus), 0);
+
+  return TREATMENT_TIMELINE_ORDER.map((value, index) => {
+    const state = index < currentIndex ? 'completed' : index === currentIndex ? 'current' : 'upcoming';
+    let label = '';
+    let date = null;
+    let subDetail = null;
+
+    if (value === 'newly-diagnosed') {
+      label = 'Initial Assessment';
+      date = formatDiagnosisDate(user?.dateOfDiagnosis);
+      subDetail = [user?.cancerType, user?.cancerStage].filter(Boolean).join(' · ') || null;
+    } else if (value === 'awaiting-surgery') {
+      label = 'Pre-Surgery';
+    } else if (value === 'chemo-radiation') {
+      label = user?.chemoSessionsCompleted ? `Chemo Cycle ${user.chemoSessionsCompleted}` : 'Chemotherapy';
+      if (state === 'current' && user?.chemoSessionsTotal) {
+        subDetail = `Cycle ${user.chemoSessionsCompleted || 0} of ${user.chemoSessionsTotal}`;
+      }
+    } else if (value === 'post-treatment') {
+      label = 'Post Surgery';
+    }
+
+    return { value, label, state, date, subDetail };
+  });
+}
 
 const DP_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DP_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -86,7 +146,12 @@ export default function ProfileScreen({ navigation }) {
   const [gender, setGender] = useState(user?.gender || '');
   const [cancerType, setCancerType] = useState(user?.cancerType || '');
   const [cancerStage, setCancerStage] = useState(user?.cancerStage || '');
+  const [treatmentStatus, setTreatmentStatus] = useState(user?.treatmentStatus || '');
+  const [dateOfDiagnosis, setDateOfDiagnosis] = useState(isoToDDMMYYYY(user?.dateOfDiagnosis));
   const [hospitalName, setHospitalName] = useState(user?.hospitalName || '');
+  const [alternatePhone, setAlternatePhone] = useState(user?.alternatePhone || '');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState(user?.emergencyContactPhone || '');
+  const [fieldStatus, setFieldStatus] = useState({}); // { [apiKey]: 'saving' | 'saved' }
   const [saving, setSaving] = useState(false);
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
@@ -193,20 +258,19 @@ export default function ProfileScreen({ navigation }) {
     } finally { setSaving(false); }
   };
 
-  const handleSave = async () => {
-    if (!name.trim() || !age || !gender) {
-      Alert.alert('Required fields', 'Please fill in your name, age, and gender.');
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateProfile({ name: name.trim(), age: Number(age), gender, cancerType, cancerStage, hospitalName });
-      await refresh();
-      setEditMode(false);
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not save. Please try again.');
-    } finally { setSaving(false); }
-  };
+  const saveFields = useCallback((partial, statusKey) => {
+    setFieldStatus((s) => ({ ...s, [statusKey]: 'saving' }));
+    updateProfile(partial)
+      .then(async () => {
+        await refresh();
+        setFieldStatus((s) => ({ ...s, [statusKey]: 'saved' }));
+        setTimeout(() => setFieldStatus((s) => ({ ...s, [statusKey]: undefined })), 1200);
+      })
+      .catch((err) => {
+        setFieldStatus((s) => ({ ...s, [statusKey]: undefined }));
+        Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not save. Please try again.');
+      });
+  }, [refresh]);
 
   const handleGenerateInvite = async () => {
     setGeneratingInvite(true);
@@ -220,15 +284,28 @@ export default function ProfileScreen({ navigation }) {
     } finally { setGeneratingInvite(false); }
   };
 
-  const openEdit = (section) => { setEditSection(section); setEditMode(true); };
-
-  const handleCancelEdit = () => {
+  const openEdit = (section) => {
+    // Resync from the last known server state each time a section opens — covers
+    // both a fresh edit and recovering from a field that failed to save last time.
     setName(user?.name || '');
     setAge(user?.age ? String(user.age) : '');
     setGender(user?.gender || '');
     setCancerType(user?.cancerType || '');
     setCancerStage(user?.cancerStage || '');
+    setTreatmentStatus(user?.treatmentStatus || '');
+    setDateOfDiagnosis(isoToDDMMYYYY(user?.dateOfDiagnosis));
     setHospitalName(user?.hospitalName || '');
+    setAlternatePhone(user?.alternatePhone || '');
+    setEmergencyContactPhone(user?.emergencyContactPhone || '');
+    setCancerQuery('');
+    setHospitalQuery('');
+    setHospitalResults([]);
+    setManualHospital(false);
+    setEditSection(section);
+    setEditMode(true);
+  };
+
+  const closeEdit = () => {
     setEditMode(false);
     setEditSection(null);
   };
@@ -778,7 +855,7 @@ export default function ProfileScreen({ navigation }) {
         <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <View style={s.header}>
-            <TouchableOpacity style={s.headerBack} onPress={handleCancelEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity style={s.headerBack} onPress={closeEdit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="chevron-back" size={22} color={C.text} />
             </TouchableOpacity>
             <Text style={s.headerTitle}>{sectionTitle}</Text>
@@ -792,92 +869,290 @@ export default function ProfileScreen({ navigation }) {
           >
             {editSection === 'personal' && (
               <>
-                <Text style={s.label}>Full Name <Text style={s.req}>*</Text></Text>
-                <TextInput style={s.input} value={name} onChangeText={setName} placeholderTextColor={C.textMuted} outlineWidth={0} />
+                <ReassuranceCard tone="blue" icon="person-outline">
+                  These details help us personalize your HealthAdri experience.
+                </ReassuranceCard>
 
-                <Text style={s.label}>Age <Text style={s.req}>*</Text></Text>
-                <TextInput
-                  style={[s.input, { width: 110 }]}
-                  value={age}
-                  onChangeText={setAge}
-                  keyboardType="number-pad"
-                  placeholderTextColor={C.textMuted}
-                  maxLength={3}
-                  outlineWidth={0}
-                />
+                <Text style={s.label}>Full Name</Text>
+                <View style={s.inputRow}>
+                  <Ionicons name="person-outline" size={18} color={C.textMuted} style={s.inputIcon} />
+                  <TextInput
+                    style={s.inputInner}
+                    value={name}
+                    onChangeText={setName}
+                    onBlur={() => { if (name.trim().length >= 2) saveFields({ name: name.trim() }, 'name'); }}
+                    placeholder="e.g. Ravi Kumar"
+                    placeholderTextColor={C.textMuted}
+                    autoCapitalize="words"
+                  />
+                  <SaveIndicator status={fieldStatus.name} />
+                </View>
 
-                <Text style={s.label}>Gender <Text style={s.req}>*</Text></Text>
+                <Text style={[s.label, { marginTop: 24 }]}>Age</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={[s.inputRow, { width: 110 }]}>
+                    <TextInput
+                      style={[s.inputInner, { textAlign: 'center' }]}
+                      value={age}
+                      onChangeText={(v) => setAge(v.replace(/[^0-9]/g, ''))}
+                      onBlur={() => {
+                        const n = Number(age);
+                        if (age && n >= 0 && n <= 150) saveFields({ age: n }, 'age');
+                      }}
+                      keyboardType="number-pad"
+                      placeholder="45"
+                      placeholderTextColor={C.textMuted}
+                      maxLength={3}
+                    />
+                  </View>
+                  <SaveIndicator status={fieldStatus.age} />
+                </View>
+
+                <Text style={[s.label, { marginTop: 24 }]}>Gender</Text>
                 <View style={s.segRow}>
                   {GENDER_OPTIONS.map((opt) => (
                     <TouchableOpacity
                       key={opt}
                       style={[s.seg, { flex: 1 }, gender === opt && s.segActive]}
-                      onPress={() => setGender(opt)}
+                      onPress={() => { setGender(opt); saveFields({ gender: opt }, 'gender'); }}
                       activeOpacity={0.75}
                     >
                       <Text style={[s.segText, gender === opt && s.segTextActive]}>{opt}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                <View style={s.editDivider} />
+                <Text style={s.subSectionLabel}>
+                  Emergency contact <Text style={s.tagOptional}>Optional</Text>
+                </Text>
+                <Text style={s.subSectionSub}>
+                  Someone we can reach if we're ever unable to reach you.
+                </Text>
+
+                <Text style={s.label}>Alternate Phone</Text>
+                <View style={[s.inputRow, { paddingHorizontal: 0, overflow: 'hidden' }]}>
+                  <View style={s.phonePrefix}><Text style={s.phonePrefixText}>+91</Text></View>
+                  <TextInput
+                    style={[s.inputInner, { paddingHorizontal: 14, flex: 1 }]}
+                    value={alternatePhone}
+                    onChangeText={(v) => setAlternatePhone(v.replace(/[^0-9]/g, ''))}
+                    onBlur={() => saveFields({ alternatePhone }, 'alternatePhone')}
+                    placeholder="Add a second number"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                  <SaveIndicator status={fieldStatus.alternatePhone} style={{ marginRight: 12 }} />
+                </View>
+
+                <Text style={[s.label, { marginTop: 20 }]}>Emergency Contact</Text>
+                <View style={[s.inputRow, { paddingHorizontal: 0, overflow: 'hidden' }]}>
+                  <View style={s.phonePrefix}><Text style={s.phonePrefixText}>+91</Text></View>
+                  <TextInput
+                    style={[s.inputInner, { paddingHorizontal: 14, flex: 1 }]}
+                    value={emergencyContactPhone}
+                    onChangeText={(v) => setEmergencyContactPhone(v.replace(/[^0-9]/g, ''))}
+                    onBlur={() => saveFields({ emergencyContactPhone }, 'emergencyContactPhone')}
+                    placeholder="Who should we call?"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                  <SaveIndicator status={fieldStatus.emergencyContactPhone} style={{ marginRight: 12 }} />
+                </View>
               </>
             )}
 
             {editSection === 'cancer' && (
               <>
+                <ReassuranceCard tone="gold" icon="medical-outline">
+                  These details help personalize symptom tracking, educational resources, and
+                  your care experience. If you're unsure about any information, don't worry —
+                  you can update it later.
+                </ReassuranceCard>
+
                 <Text style={s.label}>Cancer Type</Text>
-                <TextInput
-                  style={s.input}
+                <CancerTypeField
+                  query={cancerQuery}
+                  onQueryChange={setCancerQuery}
                   value={cancerType}
-                  onChangeText={setCancerType}
-                  placeholder="e.g. Breast Cancer"
-                  placeholderTextColor={C.textMuted}
-                  outlineWidth={0}
+                  onSelect={(label) => { setCancerType(label); saveFields({ cancerType: label }, 'cancerType'); }}
                 />
 
-                <Text style={s.label}>Stage</Text>
+                <Text style={[s.label, { marginTop: 24 }]}>
+                  Stage <Text style={s.tagOptional}>Optional</Text>
+                </Text>
                 <View style={s.segRow}>
-                  {CANCER_STAGES.map((st) => (
+                  {CANCER_STAGES.filter((st) => st.value !== 'Not Sure').map((st) => (
                     <TouchableOpacity
                       key={st.value}
                       style={[s.seg, { flex: 1 }, cancerStage === st.value && s.segActive]}
-                      onPress={() => setCancerStage(cancerStage === st.value ? '' : st.value)}
+                      onPress={() => {
+                        const next = cancerStage === st.value ? '' : st.value;
+                        setCancerStage(next);
+                        saveFields({ cancerStage: next }, 'cancerStage');
+                      }}
                       activeOpacity={0.75}
                     >
                       <Text style={[s.segText, cancerStage === st.value && s.segTextActive]}>{st.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
+                <NotSureRow
+                  active={cancerStage === 'Not Sure'}
+                  onPress={() => {
+                    const next = cancerStage === 'Not Sure' ? '' : 'Not Sure';
+                    setCancerStage(next);
+                    saveFields({ cancerStage: next }, 'cancerStage');
+                  }}
+                />
+
+                <Text style={[s.label, { marginTop: 24 }]}>Treatment Status</Text>
+                <View style={s.listCard}>
+                  {TREATMENT_STATUS.map((opt, idx) => {
+                    const sel = treatmentStatus === opt.value;
+                    const isLast = idx === TREATMENT_STATUS.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[s.listRow, !isLast && { borderBottomWidth: 1, borderBottomColor: C.border }]}
+                        onPress={() => { setTreatmentStatus(opt.value); saveFields({ treatmentStatus: opt.value }, 'treatmentStatus'); }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[s.radio, sel && s.radioActive]}>
+                          {sel && <View style={s.radioDot} />}
+                        </View>
+                        <Text style={[s.listRowText, sel && s.listRowTextActive, { marginLeft: 12 }]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={[s.label, { marginTop: 24 }]}>
+                  Date of Diagnosis <Text style={s.tagOptional}>Optional</Text>
+                </Text>
+                <DatePickerField
+                  value={dateOfDiagnosis}
+                  onChange={(v) => { setDateOfDiagnosis(v); saveFields({ dateOfDiagnosis: ddmmyyyyToISO(v) }, 'dateOfDiagnosis'); }}
+                />
               </>
             )}
 
             {editSection === 'hospital' && (
               <>
-                <Text style={s.label}>Hospital Name</Text>
-                <TextInput
-                  style={s.input}
-                  value={hospitalName}
-                  onChangeText={setHospitalName}
-                  placeholderTextColor={C.textMuted}
-                  outlineWidth={0}
-                />
+                <ReassuranceCard tone="blue" icon="business-outline">
+                  Tell us where you currently receive care. You can update this anytime if
+                  your hospital changes.
+                </ReassuranceCard>
+
+                <Text style={s.label}>Hospital</Text>
+                {!manualHospital ? (
+                  <>
+                    <View style={s.inputRow}>
+                      <Ionicons name="search-outline" size={18} color={C.textMuted} style={s.inputIcon} />
+                      <TextInput
+                        style={s.inputInner}
+                        value={hospitalQuery}
+                        onChangeText={handleHospitalSearch}
+                        placeholder="Search hospital or city"
+                        placeholderTextColor={C.textMuted}
+                      />
+                      {hospitalLoading
+                        ? <ActivityIndicator size="small" color={C.primary} />
+                        : hospitalQuery.length > 0 && (
+                          <TouchableOpacity onPress={() => { setHospitalQuery(''); setHospitalResults([]); }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Ionicons name="close-circle" size={18} color={C.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {hospitalName && !hospitalQuery && (
+                      <View style={s.selectedRow}>
+                        <Ionicons name="business-outline" size={18} color={C.primary} />
+                        <Text style={s.selectedText} numberOfLines={1}>{hospitalName}</Text>
+                        <SaveIndicator status={fieldStatus.hospitalName} />
+                        <TouchableOpacity
+                          onPress={() => {
+                            setHospitalName('');
+                            saveFields({ hospitalName: '', hospitalId: null }, 'hospitalName');
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color={C.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {hospitalResults.length > 0 && (
+                      <View style={s.listCard}>
+                        {hospitalResults.map((h, idx) => {
+                          const isLast = idx === hospitalResults.length - 1;
+                          return (
+                            <TouchableOpacity
+                              key={h._id}
+                              style={[s.listRow, !isLast && { borderBottomWidth: 1, borderBottomColor: C.border }]}
+                              onPress={() => {
+                                setHospitalName(h.name);
+                                setHospitalQuery('');
+                                setHospitalResults([]);
+                                saveFields({ hospitalId: h._id, hospitalName: h.name }, 'hospitalName');
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <View style={s.listIconBox}>
+                                <Ionicons name="business-outline" size={15} color={C.primary} />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={s.listRowText}>{h.name}</Text>
+                                {h.city && <Text style={s.listRowSub}>{h.city}</Text>}
+                              </View>
+                              <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    <View style={s.cantFind}>
+                      <Text style={s.cantFindText}>Can't find your hospital?</Text>
+                      <TouchableOpacity style={s.addManualBtn} onPress={() => setManualHospital(true)}>
+                        <Ionicons name="add-circle-outline" size={16} color={C.primary} />
+                        <Text style={s.addManualText}>Add Hospital Manually</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <View>
+                    <TouchableOpacity style={s.backLink} onPress={() => setManualHospital(false)}>
+                      <Ionicons name="chevron-back" size={16} color={C.primary} />
+                      <Text style={s.backLinkText}>Back to search</Text>
+                    </TouchableOpacity>
+
+                    <View style={s.inputRow}>
+                      <Ionicons name="business-outline" size={18} color={C.textMuted} style={s.inputIcon} />
+                      <TextInput
+                        style={s.inputInner}
+                        value={hospitalName}
+                        onChangeText={setHospitalName}
+                        onBlur={() => saveFields({ hospitalName: hospitalName.trim(), hospitalId: null }, 'hospitalName')}
+                        placeholder="e.g. Sri Sai Oncology Center"
+                        placeholderTextColor={C.textMuted}
+                        autoCapitalize="words"
+                      />
+                      <SaveIndicator status={fieldStatus.hospitalName} />
+                    </View>
+                  </View>
+                )}
               </>
             )}
           </ScrollView>
 
           <View style={s.footer}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={s.cancelBtn} onPress={handleCancelEdit}>
-                <Text style={s.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.ctaBtn, { flex: 1 }, saving && s.ctaBtnDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                {saving ? <ActivityIndicator color={C.white} /> : <Text style={s.ctaBtnText}>Save Changes</Text>}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={s.doneBtn} onPress={closeEdit} activeOpacity={0.8}>
+              <Text style={s.doneBtnText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -916,11 +1191,14 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Diagnosis & Treatment timeline — hidden pending disclosure-model sign-off, see specs/treatment-journey-decisions.md */}
+          {SHOW_TREATMENT_TIMELINE && <TreatmentTimeline user={user} />}
+
           {/* Primary menu */}
           <View style={s.menuCard}>
             <MenuItem
               icon="person-outline"
-              iconBg="#EFF6FF"
+              iconBg={colors.accentBlueTint}
               iconColor="#3B82F6"
               label="Personal Information"
               onPress={() => openEdit('personal')}
@@ -935,7 +1213,7 @@ export default function ProfileScreen({ navigation }) {
             <MenuItem
               icon="business-outline"
               iconBg="#F0FDF4"
-              iconColor="#16A34A"
+              iconColor={colors.success}
               label="Hospital Information"
               onPress={() => openEdit('hospital')}
             />
@@ -955,15 +1233,15 @@ export default function ProfileScreen({ navigation }) {
           <View style={[s.menuCard, { marginTop: 16 }]}>
             <MenuItem
               icon="notifications-outline"
-              iconBg="#FEF3C7"
-              iconColor="#D97706"
+              iconBg={colors.warningTint}
+              iconColor={colors.warningStrong}
               label="Notifications"
               onPress={() => {}}
             />
             <MenuItem
               icon="shield-outline"
               iconBg="#F5F3FF"
-              iconColor="#7C3AED"
+              iconColor={colors.accentViolet}
               label="Privacy & Security"
               onPress={() => {}}
             />
@@ -976,7 +1254,7 @@ export default function ProfileScreen({ navigation }) {
             />
             <MenuItem
               icon="information-circle-outline"
-              iconBg="#F9FAFB"
+              iconBg={colors.backgroundAlt}
               iconColor="#6B7280"
               label="About Us"
               onPress={() => {}}
@@ -997,6 +1275,130 @@ export default function ProfileScreen({ navigation }) {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function TreatmentTimeline({ user }) {
+  const nodes = getTreatmentTimeline(user);
+
+  return (
+    <View style={s.timelineCard}>
+      <Text style={s.timelineTitle}>Diagnosis & Treatment</Text>
+      {nodes.map((node, index) => {
+        const isLast = index === nodes.length - 1;
+        return (
+          <View key={node.value} style={s.timelineRow}>
+            <View style={s.timelineIndicatorCol}>
+              <View
+                style={[
+                  s.timelineDot,
+                  node.state === 'completed' && s.timelineDotCompleted,
+                  node.state === 'current' && s.timelineDotCurrent,
+                  node.state === 'upcoming' && s.timelineDotUpcoming,
+                ]}
+              >
+                {node.state === 'completed' ? (
+                  <Ionicons name="checkmark" size={12} color={C.white} />
+                ) : node.state === 'current' ? (
+                  <View style={s.timelineDotInner} />
+                ) : null}
+              </View>
+              {!isLast && (
+                <View style={[s.timelineLine, node.state === 'completed' && s.timelineLineActive]} />
+              )}
+            </View>
+            <View style={[s.timelineContent, !isLast && { paddingBottom: 20 }]}>
+              <View style={s.timelineLabelRow}>
+                <Text style={[s.timelineLabel, node.state === 'current' && s.timelineLabelCurrent]}>
+                  {node.label}
+                </Text>
+                {node.date ? <Text style={s.timelineDate}>{node.date}</Text> : null}
+              </View>
+              {node.subDetail ? <Text style={s.timelineSubDetail}>{node.subDetail}</Text> : null}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function ReassuranceCard({ tone, icon, children }) {
+  return (
+    <View style={[s.reassureCard, tone === 'gold' ? s.reassureCardGold : s.reassureCardBlue]}>
+      <Ionicons name={icon} size={18} color={tone === 'gold' ? colors.marigold : C.primary} style={{ marginTop: 1 }} />
+      <Text style={s.reassureText}>{children}</Text>
+    </View>
+  );
+}
+
+function SaveIndicator({ status, style }) {
+  if (!status) return null;
+  if (status === 'saving') return <ActivityIndicator size="small" color={C.primary} style={style} />;
+  return <Ionicons name="checkmark-circle" size={18} color={colors.success} style={style} />;
+}
+
+function NotSureRow({ active, onPress }) {
+  return (
+    <TouchableOpacity style={[s.notSureRow, active && s.notSureRowActive]} onPress={onPress} activeOpacity={0.75}>
+      <Ionicons name="help-circle-outline" size={16} color={active ? colors.marigold : C.textSub} />
+      <Text style={[s.notSureRowText, active && s.notSureRowTextActive]}>Not sure — I'll check with my doctor</Text>
+    </TouchableOpacity>
+  );
+}
+
+function CancerTypeField({ query, onQueryChange, value, onSelect }) {
+  const filtered = query.trim()
+    ? CANCER_TYPES.filter((t) => t.label.toLowerCase().includes(query.toLowerCase()))
+    : CANCER_TYPES;
+
+  return (
+    <>
+      <View style={s.inputRow}>
+        <Ionicons name="search-outline" size={18} color={C.textMuted} style={s.inputIcon} />
+        <TextInput
+          style={s.inputInner}
+          value={query}
+          onChangeText={onQueryChange}
+          placeholder="Search cancer type"
+          placeholderTextColor={C.textMuted}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => onQueryChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color={C.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {value && !query && (
+        <View style={s.selectedRow}>
+          <Ionicons name="medical-outline" size={18} color={C.primary} />
+          <Text style={s.selectedText} numberOfLines={1}>{value}</Text>
+        </View>
+      )}
+
+      {query.length > 0 && (
+        <View style={s.listCard}>
+          {filtered.map((type, idx) => {
+            const isLast = idx === filtered.length - 1;
+            return (
+              <TouchableOpacity
+                key={type.id}
+                style={[s.listRow, !isLast && { borderBottomWidth: 1, borderBottomColor: C.border }]}
+                onPress={() => { onSelect(type.label); onQueryChange(''); }}
+                activeOpacity={0.7}
+              >
+                <View style={s.listIconBox}>
+                  <Ionicons name="medical-outline" size={15} color={C.primary} />
+                </View>
+                <Text style={s.listRowText}>{type.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          {filtered.length === 0 && <Text style={s.emptyText}>No results for "{query}"</Text>}
+        </View>
+      )}
+    </>
+  );
+}
 
 function ReviewCard({ label, icon, onEdit, children }) {
   return (
@@ -1526,7 +1928,7 @@ const s = StyleSheet.create({
   infoCard: {
     backgroundColor: C.white,
     marginHorizontal: 16, marginTop: 16, borderRadius: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowColor: C.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 6, elevation: 2, overflow: 'hidden',
   },
   infoCardTitle: {
@@ -1550,7 +1952,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.white, marginHorizontal: 16, marginTop: 16,
     borderRadius: 16, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowColor: C.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 6, elevation: 2, gap: 12,
   },
   recordsIconBox: {
@@ -1564,7 +1966,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.white, marginHorizontal: 16, marginTop: 12,
     borderRadius: 16, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowColor: C.black, shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 6, elevation: 2, gap: 12,
   },
   inviteIconBox: {
@@ -1576,26 +1978,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8, minWidth: 80, alignItems: 'center',
   },
   inviteBtnText: { color: C.white, fontWeight: '700', fontSize: 12 },
-
-  // Edit mode card
-  editCard: {
-    backgroundColor: C.white, marginHorizontal: 16, marginTop: 16,
-    borderRadius: 16, padding: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
-  },
-  editSectionTitle: {
-    fontSize: 11, fontWeight: '700', color: C.primary,
-    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
-  },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 20 },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  cancelBtn: {
-    backgroundColor: C.bg, borderRadius: 14,
-    paddingVertical: 16, paddingHorizontal: 20,
-    alignItems: 'center', borderWidth: 1.5, borderColor: C.border,
-  },
-  cancelBtnText: { color: C.textSub, fontWeight: '700', fontSize: 15 },
 
   // Date picker field (trigger button)
   dateField: {
@@ -1668,6 +2050,31 @@ const s = StyleSheet.create({
     backgroundColor: C.white, marginHorizontal: 16,
     borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden',
   },
+  timelineCard: {
+    backgroundColor: C.white, marginHorizontal: 16, marginBottom: 16,
+    borderRadius: 16, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4,
+  },
+  timelineTitle: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 16 },
+  timelineRow: { flexDirection: 'row' },
+  timelineIndicatorCol: { width: 28, alignItems: 'center' },
+  timelineDot: {
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: C.border, backgroundColor: C.white,
+  },
+  timelineDotCompleted: { backgroundColor: C.primary, borderColor: C.primary },
+  timelineDotCurrent: { borderColor: C.primary },
+  timelineDotUpcoming: {},
+  timelineDotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+  timelineLine: { flex: 1, width: 2, backgroundColor: C.border, marginVertical: 2 },
+  timelineLineActive: { backgroundColor: C.primary },
+  timelineContent: { flex: 1, marginLeft: 12, paddingBottom: 4 },
+  timelineLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  timelineLabel: { fontSize: 14, fontWeight: '600', color: C.textSub },
+  timelineLabelCurrent: { color: C.primary, fontWeight: '700' },
+  timelineDate: { fontSize: 12, color: C.textMuted },
+  timelineSubDetail: { fontSize: 12, color: C.textMuted, marginTop: 2 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 15,
@@ -1686,18 +2093,39 @@ const s = StyleSheet.create({
   },
   signOutText: { fontSize: 14, fontWeight: '600', color: C.errorText },
 
-  // ── Edit mode ──
-  editSectionTitle: {
-    fontSize: 11, fontWeight: '700', color: C.primary,
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginTop: 24, marginBottom: 4,
+  // ── Edit mode: Profile Design System ──
+  reassureCard: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    padding: 14, borderRadius: 16, marginBottom: 22,
   },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 20 },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  cancelBtn: {
-    backgroundColor: C.bg, borderRadius: 14,
-    paddingVertical: 16, paddingHorizontal: 20,
-    alignItems: 'center', borderWidth: 1.5, borderColor: C.border,
+  reassureCardBlue: { backgroundColor: C.primaryLight },
+  reassureCardGold: { backgroundColor: colors.marigoldTint },
+  reassureText: { flex: 1, fontSize: 13.5, color: C.text, lineHeight: 19 },
+
+  subSectionLabel: {
+    fontSize: 11, fontWeight: '700', color: C.textSub,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4,
   },
-  cancelBtnText: { color: C.textSub, fontWeight: '700', fontSize: 15 },
+  subSectionSub: { fontSize: 12, color: C.textSub, marginBottom: 16, lineHeight: 17 },
+  editDivider: { height: 1, backgroundColor: C.border, marginTop: 28, marginBottom: 20 },
+
+  tagOptional: {
+    fontSize: 11, fontWeight: '400', color: C.textSub, backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999,
+  },
+
+  notSureRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginTop: 10,
+  },
+  notSureRowActive: { borderStyle: 'solid', borderColor: colors.marigold, backgroundColor: colors.marigoldTint },
+  notSureRowText: { fontSize: 13, color: C.textSub, fontWeight: '500' },
+  notSureRowTextActive: { color: '#8A5F14', fontWeight: '600' },
+
+  doneBtn: {
+    borderWidth: 1.5, borderColor: C.primaryLight, backgroundColor: colors.primarySurface,
+    borderRadius: 999, paddingVertical: 16, alignItems: 'center',
+  },
+  doneBtnText: { color: C.primary, fontWeight: '700', fontSize: 15 },
 });

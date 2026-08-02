@@ -20,13 +20,13 @@ const C = {
   card:    '#252540',
   border:  '#2E2E4A',
   teal:    colors.primary,
-  tealBright: '#29ABE2',
-  red:     '#EF4444',
-  amber:   '#F59E0B',
-  green:   '#22C55E',
-  muted:   '#94A3B8',
+  tealBright: colors.accent,
+  red:     colors.danger,
+  amber:   colors.warning,
+  green:   colors.successStrong,
+  muted:   colors.textMuted,
   text:    '#F1F5F9',
-  textSub: '#94A3B8',
+  textSub: colors.textMuted,
 };
 
 const SKIP_REASONS = [
@@ -363,7 +363,7 @@ const s = StyleSheet.create({
   },
   actionCircleSkip:  { backgroundColor: '#FEE2E2' },
   actionCircleTake:  { backgroundColor: C.tealBright },
-  actionCircleSnooze:{ backgroundColor: '#FEF3C7' },
+  actionCircleSnooze:{ backgroundColor: colors.warningTint },
   actionLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
   doneBtn: {
@@ -373,7 +373,7 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  doneBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
 
   // Skip reason modal
   modalBackdrop: {
@@ -422,7 +422,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   confirmBtnDisabled: { opacity: 0.4 },
-  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  confirmBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   cancelBtn: { alignItems: 'center', paddingVertical: 10 },
   cancelBtnText: { color: C.muted, fontSize: 14 },
 });

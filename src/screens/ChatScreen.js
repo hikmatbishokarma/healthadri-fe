@@ -15,12 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getThread, sendChatMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme';
 
 const POLL_INTERVAL = 4000;
 
 // Theme tokens per role — caregiver gets purple, patient gets brand blue
 const THEME = {
-  patient:   { header: '#11607F', avatarBg: '#1B8FBF', ownBubble: '#11607F', sendDisabled: '#9FCFE8' },
+  patient:   { header: colors.primaryDark, avatarBg: colors.primaryVivid, ownBubble: colors.primaryDark, sendDisabled: '#9FCFE8' },
   caregiver: { header: '#2D2060', avatarBg: '#534AB7', ownBubble: '#2D2060', sendDisabled: '#B0ACDF' },
 };
 
@@ -30,9 +31,9 @@ function getBubbleStyle(senderType, isMe, theme) {
     return { bg: '#EDF4FF', text: '#0C447C', align: 'flex-start', extraStyle: s.bubbleIn, radius: { borderBottomLeftRadius: 3 } };
   if (senderType === 'navigator')
     // Spec §12: navigator reply = light brand tint, not plain white
-    return { bg: '#E6F4FB', text: '#11607F', align: 'flex-start', extraStyle: s.bubbleInNav, radius: { borderBottomLeftRadius: 3 } };
+    return { bg: colors.primaryTint, text: colors.primaryDark, align: 'flex-start', extraStyle: s.bubbleInNav, radius: { borderBottomLeftRadius: 3 } };
   if (isMe)
-    return { bg: theme.ownBubble, text: '#fff', align: 'flex-end', extraStyle: null, radius: { borderBottomRightRadius: 3 } };
+    return { bg: theme.ownBubble, text: colors.white, align: 'flex-end', extraStyle: null, radius: { borderBottomRightRadius: 3 } };
   // caregiver message seen in patient view — spec §12: #F3F1FE / border #CECBF6
   return { bg: '#F3F1FE', text: '#3C3489', align: 'flex-start', extraStyle: s.bubbleInCg, radius: { borderBottomLeftRadius: 3 } };
 }
@@ -138,7 +139,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
     );
   }
 
-  const onlineDot = navigatorOnline ? '#29ABE2' : '#F5A623';
+  const onlineDot = navigatorOnline ? colors.accent : '#F5A623';
 
   return (
     <SafeAreaView style={s.root} edges={embedded ? [] : ['top']}>
@@ -148,7 +149,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
       {!embedded && (
         <View style={[s.hdr, { backgroundColor: theme.header }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color={colors.white} />
           </TouchableOpacity>
           <View style={[s.hdrAvatar, { backgroundColor: theme.avatarBg }]}>
             <Text style={s.hdrAvatarText}>SN</Text>
@@ -205,7 +206,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
               if (item.senderType === 'placeholder') {
                 return (
                   <View style={s.placeholderRow}>
-                    <Ionicons name="lock-closed-outline" size={10} color="#9A9186" />
+                    <Ionicons name="lock-closed-outline" size={10} color={colors.textTaupe} />
                     <Text style={s.placeholderText}>{item.body}</Text>
                   </View>
                 );
@@ -245,7 +246,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
           <TextInput
             style={s.input}
             placeholder="Type a message…"
-            placeholderTextColor="#9A9186"
+            placeholderTextColor={colors.textTaupe}
             value={text}
             onChangeText={setText}
             multiline
@@ -255,7 +256,7 @@ export default function ChatScreen({ navigation, embedded = false }) {
             onPress={handleSend}
             disabled={!text.trim() || sending}
           >
-            <Ionicons name="send" size={16} color="#fff" />
+            <Ionicons name="send" size={16} color={colors.white} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -272,7 +273,7 @@ const s = StyleSheet.create({
   backBtn:       { padding: 2 },
   hdrAvatar:     { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   hdrAvatarText: { color: '#E6F4FB', fontSize: 11, fontWeight: '700' },
-  hdrName:       { fontSize: 14, fontWeight: '600', color: '#fff' },
+  hdrName:       { fontSize: 14, fontWeight: '600', color: colors.white },
   hdrSub:        { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
   statusDot:     { width: 8, height: 8, borderRadius: 4 },
 
@@ -294,7 +295,7 @@ const s = StyleSheet.create({
 
   // Message list
   msgList:    { padding: 12, flexGrow: 1 },
-  senderLabel: { fontSize: 10, color: '#9A9186', marginBottom: 2, paddingLeft: 2 },
+  senderLabel: { fontSize: 10, color: colors.textTaupe, marginBottom: 2, paddingLeft: 2 },
 
   // Bubbles — base
   bubble:      { padding: 10, borderRadius: 12 },
@@ -321,7 +322,7 @@ const s = StyleSheet.create({
   // Input bar
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    padding: 10, backgroundColor: '#fff',
+    padding: 10, backgroundColor: colors.white,
     borderTopWidth: 0.5, borderTopColor: '#E8E5E0',
   },
   input: {
@@ -330,7 +331,7 @@ const s = StyleSheet.create({
     fontSize: 13, color: '#2C2822', maxHeight: 100,
   },
   sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: '#9A9186', fontSize: 13, textAlign: 'center', marginTop: 40 },
+  emptyText: { color: colors.textTaupe, fontSize: 13, textAlign: 'center', marginTop: 40 },
 
   // Rule 14: blocker placeholder for hidden messages
   placeholderRow: {
@@ -340,5 +341,5 @@ const s = StyleSheet.create({
     borderRadius: 10, marginBottom: 6,
     borderWidth: 0.5, borderColor: '#E0DDD8',
   },
-  placeholderText: { fontSize: 10, color: '#9A9186', fontStyle: 'italic' },
+  placeholderText: { fontSize: 10, color: colors.textTaupe, fontStyle: 'italic' },
 });

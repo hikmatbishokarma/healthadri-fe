@@ -7,6 +7,7 @@ const FRACTION = { HIGH: 1, MED: 0.66, LOW: 0.33 };
 
 export default function SeverityGauge({
   severity,
+  fraction: fractionProp,
   size = 48,
   strokeWidth = 5,
   color,
@@ -15,7 +16,7 @@ export default function SeverityGauge({
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const fraction = severity ? (FRACTION[severity] ?? 0) : 0;
+  const fraction = fractionProp !== undefined ? fractionProp : (severity ? (FRACTION[severity] ?? 0) : 0);
   const dashOffset = circumference * (1 - fraction);
 
   return (

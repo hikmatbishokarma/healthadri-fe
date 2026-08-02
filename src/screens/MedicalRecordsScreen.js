@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import {
   getDocuments,
   uploadDocument,
@@ -32,31 +34,41 @@ const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
-  blue: '#2563EB',
-  bluePale: '#EFF6FF',
-  amber: '#F59E0B',
+  blue: colors.accentBlue,
+  bluePale: colors.accentBlueTint,
+  amber: colors.warning,
   amberPale: '#FEF9C3',
-  purple: '#7C3AED',
+  purple: colors.accentViolet,
   purplePale: '#F5F3FF',
-  red: '#EF4444',
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  red: colors.danger,
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
 };
 
 const CATEGORIES = [
   { id: 'prescription', label: 'Prescription', color: C.teal,   pale: C.tealPale,   icon: 'medkit-outline' },
   { id: 'lab',          label: 'Lab Report',   color: C.blue,   pale: C.bluePale,   icon: 'flask-outline' },
   { id: 'discharge',    label: 'Discharge',    color: C.purple, pale: C.purplePale, icon: 'business-outline' },
-  { id: 'other',        label: 'Other',        color: C.muted,  pale: '#F1F5F9',    icon: 'document-outline' },
+  { id: 'other',        label: 'Other',        color: C.muted,  pale: colors.surfaceSubtle,    icon: 'document-outline' },
 ];
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 function categoryStyle(id) {
   return CATEGORIES.find((c) => c.id === id) || CATEGORIES[3];
+}
+
+function fileTypeBadge(mimeType) {
+  if (mimeType === 'application/pdf') {
+    return { label: 'PDF', color: C.red, pale: '#FEE2E2' };
+  }
+  if (mimeType === 'image/jpeg' || mimeType === 'image/png') {
+    return { icon: 'image', color: C.blue, pale: C.bluePale };
+  }
+  return { icon: 'document-outline', color: C.muted, pale: colors.surfaceSubtle };
 }
 
 function formatBytes(b) {
@@ -82,7 +94,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [uploadModal, setUploadModal] = useState(null); // { fileAsset } when picked
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('prescription');
 
   const counts = useMemo(() => {
     const c = { prescription: 0, lab: 0, discharge: 0, other: 0 };
@@ -124,7 +136,9 @@ export default function MedicalRecordsScreen({ navigation, route }) {
     fetchDocs();
   };
 
-  const pickFile = async () => {
+  // presetCategory: only passed by the explicit "+ Upload to <Category>" buttons
+  // shown once a category is filtered — never inferred from tapping a tile.
+  const pickFile = async (presetCategory = null) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ALLOWED_TYPES,
@@ -139,7 +153,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
         Alert.alert('Unsupported file', 'Please upload a PDF, JPG, or PNG.');
         return;
       }
-      setUploadModal({ asset });
+      setUploadModal({ asset, presetCategory });
     } catch (err) {
       Alert.alert('Could not pick file', err?.message || 'Try again.');
     }
@@ -177,6 +191,36 @@ export default function MedicalRecordsScreen({ navigation, route }) {
     );
   };
 
+  // Fetches the file to a local temp path, then hands it to the OS share
+  // sheet — on both iOS and Android that sheet includes "Save to Files" /
+  // "Save Image", so this one action covers both "download" and "share".
+  const handleShare = async (doc) => {
+    try {
+      const localUri = `${FileSystem.cacheDirectory}${doc.fileName}`;
+      const { uri } = await FileSystem.downloadAsync(getDocumentFileUrl(doc._id), localUri);
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert('Not available', 'Sharing is not supported on this device.');
+        return;
+      }
+      await Sharing.shareAsync(uri, { mimeType: doc.mimeType, dialogTitle: doc.fileName });
+    } catch {
+      Alert.alert('Could not download', 'Please try again.');
+    }
+  };
+
+  const handleMore = (doc) => {
+    Alert.alert(
+      doc.fileName,
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Share', onPress: () => handleShare(doc) },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDelete(doc) },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={C.tealDark} />
@@ -184,7 +228,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>
@@ -206,15 +250,57 @@ export default function MedicalRecordsScreen({ navigation, route }) {
           contentContainerStyle={styles.bodyContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
+          {!readOnly && (
+            <View style={styles.uploadBanner}>
+              <View style={styles.uploadBannerIcon}>
+                <Ionicons name="folder-open" size={28} color={C.teal} />
+              </View>
+              <View style={styles.uploadBannerText}>
+                <Text style={styles.uploadBannerTitle}>Your health records, always safe and organized</Text>
+                <Text style={styles.uploadBannerSub}>
+                  Upload reports, prescriptions, scans and other documents. Only you and your care team can access them.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {docs.length > 0 && (
             <>
+              <Text style={styles.sectionLabel}>DOCUMENT CATEGORIES</Text>
+              <View style={styles.categoryRow}>
+                {CATEGORIES.map((c) => {
+                  const active = activeCategory === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[
+                        styles.categoryTile,
+                        { backgroundColor: c.pale },
+                        active && { borderColor: c.color, borderWidth: 2 },
+                      ]}
+                      onPress={() => setActiveCategory(active ? null : c.id)}
+                      activeOpacity={0.75}
+                    >
+                      {active && (
+                        <View style={[styles.categoryTileCheck, { backgroundColor: c.color }]}>
+                          <Ionicons name="checkmark" size={9} color={colors.white} />
+                        </View>
+                      )}
+                      <Ionicons name={c.icon} size={17} color={c.color} />
+                      <Text style={styles.categoryTileLabel} numberOfLines={2}>{c.label}</Text>
+                      <Text style={[styles.categoryTileCount, { color: c.color }]}>{counts[c.id]}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <View style={styles.searchBox}>
                 <Ionicons name="search" size={16} color={C.muted} />
                 <TextInput
                   style={styles.searchInput}
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="Search documents"
+                  placeholder={activeCategory ? `Search in ${categoryStyle(activeCategory).label}` : 'Search documents'}
                   placeholderTextColor={C.muted}
                 />
                 {search.length > 0 && (
@@ -224,28 +310,21 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                 )}
               </View>
 
-              <Text style={styles.sectionLabel}>DOCUMENT CATEGORIES</Text>
-              <View style={styles.categoryGrid}>
-                {CATEGORIES.map((c) => {
-                  const active = activeCategory === c.id;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.categoryTile, active && { borderColor: c.color, backgroundColor: c.pale }]}
-                      onPress={() => setActiveCategory(active ? null : c.id)}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name={c.icon} size={20} color={c.color} />
-                      <Text style={styles.categoryTileLabel}>{c.label}</Text>
-                      <Text style={[styles.categoryTileCount, { color: c.color }]}>{counts[c.id]}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionLabel}>
+                  {activeCategory || search ? 'MATCHING DOCUMENTS' : 'RECENT DOCUMENTS'}
+                </Text>
+                {!readOnly && filteredDocs.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => pickFile(activeCategory)}
+                    style={styles.inlineUploadBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="add" size={14} color={C.teal} />
+                    <Text style={styles.inlineUploadText}>Upload</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-
-              <Text style={styles.sectionLabel}>
-                {activeCategory || search ? 'MATCHING DOCUMENTS' : 'RECENT DOCUMENTS'}
-              </Text>
             </>
           )}
 
@@ -258,6 +337,27 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                   ? 'This patient has not uploaded any documents.'
                   : 'Upload prescriptions, lab reports, or discharge summaries here. Your care team can view them.'}
               </Text>
+              {!readOnly && (
+                <TouchableOpacity style={styles.addBtn} onPress={() => pickFile()} activeOpacity={0.85}>
+                  <Text style={styles.addBtnText}>+ Upload a document</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : filteredDocs.length === 0 && activeCategory && !search ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No documents yet</Text>
+              <Text style={styles.emptyText}>
+                You haven't added any {categoryStyle(activeCategory).label} documents yet.
+              </Text>
+              {!readOnly && (
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  onPress={() => pickFile(activeCategory)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.addBtnText}>+ Upload to {categoryStyle(activeCategory).label}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : filteredDocs.length === 0 ? (
             <View style={styles.emptyCard}>
@@ -271,22 +371,12 @@ export default function MedicalRecordsScreen({ navigation, route }) {
                 doc={d}
                 readOnly={readOnly}
                 onOpen={() => handleOpen(d)}
-                onDelete={() => handleDelete(d)}
+                onDownload={() => handleShare(d)}
+                onMore={() => handleMore(d)}
               />
             ))
           )}
         </ScrollView>
-      )}
-
-      {!readOnly && (
-        <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.card }}>
-          <View style={styles.bottomBar}>
-            <TouchableOpacity onPress={pickFile} style={styles.uploadBtn}>
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={styles.uploadBtnText}>Upload a document</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
       )}
 
       {!readOnly && <BottomNav active="Documents" navigation={navigation} />}
@@ -294,6 +384,7 @@ export default function MedicalRecordsScreen({ navigation, route }) {
       <UploadModal
         visible={!!uploadModal}
         asset={uploadModal?.asset}
+        defaultCategory={uploadModal?.presetCategory}
         patientId={patientId}
         uploaderId={user?._id}
         onClose={() => setUploadModal(null)}
@@ -306,13 +397,16 @@ export default function MedicalRecordsScreen({ navigation, route }) {
   );
 }
 
-function DocRow({ doc, readOnly, onOpen, onDelete }) {
+function DocRow({ doc, readOnly, onOpen, onDownload, onMore }) {
   const cat = categoryStyle(doc.category);
+  const fileType = fileTypeBadge(doc.mimeType);
   return (
     <View style={styles.docCard}>
       <TouchableOpacity onPress={onOpen} style={styles.docMain} activeOpacity={0.7}>
-        <View style={[styles.docIcon, { backgroundColor: cat.pale }]}>
-          <Ionicons name={cat.icon} size={22} color={cat.color} />
+        <View style={[styles.docIcon, { backgroundColor: fileType.pale }]}>
+          {fileType.label
+            ? <Text style={[styles.docIconLabel, { color: fileType.color }]}>{fileType.label}</Text>
+            : <Ionicons name={fileType.icon} size={22} color={fileType.color} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.docName} numberOfLines={1}>
@@ -331,25 +425,30 @@ function DocRow({ doc, readOnly, onOpen, onDelete }) {
         </View>
       </TouchableOpacity>
       {!readOnly && (
-        <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
-          <Text style={styles.deleteBtnText}>🗑</Text>
-        </TouchableOpacity>
+        <View style={styles.docActions}>
+          <TouchableOpacity onPress={onDownload} style={styles.docActionBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="download-outline" size={20} color={C.teal} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onMore} style={styles.docActionBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="ellipsis-vertical" size={18} color={C.muted} />
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
 }
 
-function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploaded }) {
+function UploadModal({ visible, asset, patientId, uploaderId, defaultCategory, onClose, onUploaded }) {
   const insets = useSafeAreaInsets();
-  const [category, setCategory] = useState('prescription');
+  const [category, setCategory] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (visible) setCategory('prescription');
-  }, [visible]);
+    if (visible) setCategory(defaultCategory || null);
+  }, [visible, defaultCategory]);
 
   const handleUpload = async () => {
-    if (!asset) return;
+    if (!asset || !category) return;
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -409,7 +508,9 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
             </View>
           )}
 
-          <Text style={styles.fieldLabel}>What kind of document is this?</Text>
+          <Text style={styles.fieldLabel}>
+            {defaultCategory ? 'Category' : 'What kind of document is this?'}
+          </Text>
           <View style={styles.catRow}>
             {CATEGORIES.map((c) => {
               const active = category === c.id;
@@ -424,11 +525,11 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
                       : { backgroundColor: c.pale, borderColor: 'transparent' },
                   ]}
                 >
-                  <Ionicons name={c.icon} size={16} color={active ? '#fff' : c.color} />
+                  <Ionicons name={c.icon} size={16} color={active ? colors.white : c.color} />
                   <Text
                     style={[
                       styles.catChipText,
-                      { color: active ? '#fff' : c.color },
+                      { color: active ? colors.white : c.color },
                     ]}
                   >
                     {c.label}
@@ -437,6 +538,9 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
               );
             })}
           </View>
+          {!category && (
+            <Text style={styles.fieldHint}>Choose a category to continue.</Text>
+          )}
 
           <View style={styles.modalActions}>
             <TouchableOpacity onPress={onClose} style={[styles.modalBtn, styles.modalCancel]}>
@@ -444,11 +548,11 @@ function UploadModal({ visible, asset, patientId, uploaderId, onClose, onUploade
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleUpload}
-              disabled={submitting}
-              style={[styles.modalBtn, styles.modalSubmit]}
+              disabled={submitting || !category}
+              style={[styles.modalBtn, styles.modalSubmit, !category && styles.modalSubmitDisabled]}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <Text style={styles.modalSubmitText}>Upload</Text>
               )}
@@ -479,8 +583,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backIcon: { color: colors.white, fontSize: 18, lineHeight: 20 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700' },
   headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
 
   body: { flex: 1 },
@@ -507,26 +611,75 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 10,
   },
-
-  categoryGrid: {
+  sectionLabelRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  inlineUploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  inlineUploadText: { fontSize: 11, fontWeight: '700', color: C.teal },
+
+  addBtn: {
+    backgroundColor: C.teal,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  addBtnText: { color: colors.white, fontSize: 12, fontWeight: '700' },
+
+  uploadBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 18,
     gap: 10,
+  },
+  uploadBannerIcon: {
+    width: 48, height: 48, borderRadius: 12,
+    backgroundColor: C.tealPale,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  uploadBannerText: { flex: 1 },
+  uploadBannerTitle: { fontSize: 13, fontWeight: '700', color: C.text, lineHeight: 18 },
+  uploadBannerSub: { fontSize: 11, color: C.muted, lineHeight: 15, marginTop: 4 },
+
+  categoryRow: {
+    flexDirection: 'row',
+    gap: 6,
     marginBottom: 20,
   },
   categoryTile: {
-    width: '47%',
-    flexGrow: 1,
-    backgroundColor: C.card,
+    flex: 1,
+    alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: C.border,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     gap: 4,
   },
-  categoryTileLabel: { fontSize: 12, fontWeight: '600', color: C.text },
-  categoryTileCount: { fontSize: 18, fontWeight: '800' },
+  categoryTileCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryTileLabel: { fontSize: 9, fontWeight: '600', color: C.text, textAlign: 'center', lineHeight: 12 },
+  categoryTileCount: { fontSize: 15, fontWeight: '800' },
 
   emptyCard: {
     backgroundColor: C.card,
@@ -558,37 +711,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  docIconLabel: { fontSize: 10, fontWeight: '800' },
   docName: { fontSize: 13, fontWeight: '700', color: C.text },
   docMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   catBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   catBadgeText: { fontSize: 9, fontWeight: '700' },
   docMeta: { fontSize: 10, color: C.muted },
 
-  deleteBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+  docActions: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, gap: 4 },
+  docActionBtn: {
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteBtnText: { fontSize: 18 },
-
-  bottomBar: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-  },
-  uploadBtn: {
-    backgroundColor: C.teal,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  uploadBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   modalBackdrop: {
     flex: 1,
@@ -646,6 +782,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   catChipText: { fontSize: 11, fontWeight: '700' },
+  fieldHint: { fontSize: 11, color: C.muted, marginTop: 8 },
 
   modalActions: { flexDirection: 'row', gap: 8, marginTop: 18 },
   modalBtn: {
@@ -657,5 +794,6 @@ const styles = StyleSheet.create({
   modalCancel: { backgroundColor: C.border },
   modalCancelText: { color: C.text, fontWeight: '700', fontSize: 13 },
   modalSubmit: { backgroundColor: C.teal },
-  modalSubmitText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  modalSubmitDisabled: { backgroundColor: C.border },
+  modalSubmitText: { color: colors.white, fontWeight: '700', fontSize: 13 },
 });

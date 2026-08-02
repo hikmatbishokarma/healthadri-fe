@@ -19,11 +19,11 @@ const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
 };
 
 function openTel(phone) {
@@ -67,7 +67,7 @@ export default function HospitalDetailScreen({ navigation, route }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Hospital Details</Text>
           <View style={{ width: 32 }} />
@@ -142,7 +142,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700', flex: 1 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },

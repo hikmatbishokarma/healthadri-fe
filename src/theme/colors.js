@@ -6,24 +6,31 @@
 // gradually. Nothing breaks by adding this file.
 
 // Raw palette — the actual hues. Prefer the semantic names below in components.
+//
+// Design DNA note: the logo's own blue+gold set the hue family (see
+// /Users/hikmat/Desktop/healthadri Design DNA report). Each hue ships in two
+// tiers — Vivid stays close to the logo for brand moments (icon, splash, small
+// marks); the calm, deepened tones are what floods daily UI so the app reads
+// as premium/restrained rather than as bright as the mark itself.
 const palette = {
-  // Brand blues — from the Healthadri pinwheel logo (cyan family). Deepened from
-  // the raw logo cyan so white text on primary surfaces keeps enough contrast.
+  // Brand blues — from the Healthadri pinwheel logo (cyan family).
   brandBlue900: '#0C4A66', // darkest — splash, dark backgrounds
   brandBlue800: '#11607F', // dark blue — headings on light surfaces
-  brandBlue600: '#1B8FBF', // primary brand
+  brandBlue700: '#145E78', // calm primary — daily UI (deepened from the raw logo cyan)
+  brandBlue600: '#1B8FBF', // vivid — brand moments only (icon, splash, marks)
   brandBlue100: '#E6F4FB', // light tint — selected/brand-bg surfaces
   brandBlue50: '#F1F9FD', // faint blue page background
 
   // Brand accents — from the Healthadri pinwheel logo (cyan + yellow).
   cyan500: '#29ABE2', // logo cyan
   cyan100: '#E8F6FD', // light cyan tint
-  yellow500: '#F7B500', // logo yellow
+  yellow600: '#C3881F', // calm marigold — daily UI accent
+  yellow500: '#F7B500', // vivid marigold — brand moments (logo gold)
   yellow100: '#FEF6E0', // light yellow tint
 
   // Status / semantic hues
-  red500: '#EF4444',
-  red100: '#FEE2E2',
+  red500: '#C1544B', // muted brick — serious without being alarming (was #EF4444)
+  red100: '#FBEAE8',
   green: '#16A34A', // success-600
   green500: '#22C55E',
   greenBg: '#DCFCE7', // success-100
@@ -49,14 +56,22 @@ const palette = {
 };
 
 export const colors = {
-  // Brand
-  primary: palette.brandBlue600,
+  // Brand — calm tier, floods daily UI
+  primary: palette.brandBlue700,
   primaryDark: palette.brandBlue800,
   primaryDarkest: palette.brandBlue900,
   primaryTint: palette.brandBlue100,
   primarySurface: palette.brandBlue50,
 
-  // Brand accents (logo cyan + yellow)
+  // Brand — vivid tier, reserved for brand moments (icon, splash, small marks)
+  primaryVivid: palette.brandBlue600,
+  accentVivid: palette.yellow500,
+
+  // The one accent — marigold, calm tier for daily UI
+  marigold: palette.yellow600,
+  marigoldTint: palette.yellow100,
+
+  // Brand accents (logo cyan + yellow) — legacy names, kept for existing screens
   accent: palette.cyan500,
   accentTint: palette.cyan100,
   accentWarm: palette.yellow500,
@@ -104,9 +119,9 @@ export const colors = {
 
   // Brand-tinted shadows / overlays — kept in sync with the primary blue so a
   // re-theme updates them too. (RN style values, used in boxShadow/backgroundColor.)
-  primaryShadowSoft: 'rgba(27,143,191,0.10)', // subtle elevation
-  primaryShadowStrong: 'rgba(27,143,191,0.30)', // floating action button
-  primaryOverlay: 'rgba(27,143,191,0.12)', // faint brand background wash
+  primaryShadowSoft: 'rgba(20,94,120,0.08)', // subtle elevation
+  primaryShadowStrong: 'rgba(20,94,120,0.22)', // floating action button
+  primaryOverlay: 'rgba(20,94,120,0.12)', // faint brand background wash
   primaryDarkShadow: 'rgba(12,74,102,0.08)', // soft shadow on light cards
 };
 

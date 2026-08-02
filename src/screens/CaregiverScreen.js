@@ -14,14 +14,14 @@ const C = {
   primary: colors.primary,
   primaryLight: colors.primaryTint,
   text: '#0F172A',
-  textSub: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  bg: '#F9FAFB',
-  white: '#FFFFFF',
-  error: '#EF4444',
-  warning: '#D97706',
-  success: '#16A34A',
+  textSub: colors.textSecondary,
+  textMuted: colors.textMuted,
+  border: colors.border,
+  bg: colors.backgroundAlt,
+  white: colors.white,
+  error: colors.danger,
+  warning: colors.warningStrong,
+  success: colors.success,
 };
 
 export default function CaregiverScreen({ navigation }) {
@@ -172,7 +172,7 @@ const s = StyleSheet.create({
   },
   headerBack: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { fontSize: 16, fontWeight: '700', color: C.text },
@@ -186,12 +186,12 @@ const s = StyleSheet.create({
     backgroundColor: C.primary, borderRadius: 14,
     paddingVertical: 16, paddingHorizontal: 48,
   },
-  addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  addBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
 
   // Caregiver card
   caregiverCard: {
     flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF', marginHorizontal: 16, marginBottom: 16,
+    backgroundColor: colors.white, marginHorizontal: 16, marginBottom: 16,
     borderRadius: 16, padding: 16, gap: 14,
     borderWidth: 1.5, borderColor: C.border,
   },
@@ -205,10 +205,10 @@ const s = StyleSheet.create({
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7', borderRadius: 8,
+    backgroundColor: colors.warningTint, borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  statusPillConnected: { backgroundColor: '#DCFCE7' },
+  statusPillConnected: { backgroundColor: colors.successTint },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.warning },
   statusDotConnected: { backgroundColor: C.success },
   statusText: { fontSize: 12, fontWeight: '600', color: C.warning },
@@ -216,14 +216,14 @@ const s = StyleSheet.create({
 
   // Menu card
   menuCard: {
-    backgroundColor: '#FFFFFF', marginHorizontal: 16,
+    backgroundColor: colors.white, marginHorizontal: 16,
     borderRadius: 16, borderWidth: 1.5, borderColor: C.border, overflow: 'hidden',
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   menuDivider: { height: 1, backgroundColor: C.border, marginLeft: 64 },
   menuIconBox: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   menuText: { flex: 1, fontSize: 15, color: C.text, fontWeight: '500' },
   menuSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },

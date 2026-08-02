@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../theme/colors';
 
 const C = {
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
   selected: colors.primary,
   selectedBg: colors.primaryTint,
 };
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   chipSelected: {
     backgroundColor: C.selectedBg,

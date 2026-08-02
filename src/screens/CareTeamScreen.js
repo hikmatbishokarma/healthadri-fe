@@ -23,11 +23,11 @@ const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
   tealPale: colors.primaryTint,
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
 };
 
 function initialsOf(name) {
@@ -83,7 +83,7 @@ export default function CareTeamScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => navigation.navigate('PatientDashboard')} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Care Team</Text>
           <View style={{ width: 32 }} />
@@ -191,7 +191,7 @@ export default function CareTeamScreen({ navigation }) {
             <View style={s.card}>
               <View style={s.cardRow}>
                 <View style={[s.avatar, s.avatarSquare]}>
-                  <Ionicons name="business" size={22} color="#fff" />
+                  <Ionicons name="business" size={22} color={colors.white} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={s.name}>{hospital?.name || user.hospitalName}</Text>
@@ -213,7 +213,7 @@ export default function CareTeamScreen({ navigation }) {
             <View style={s.card}>
               <View style={s.cardRow}>
                 <View style={[s.avatar, s.avatarSquare]}>
-                  <Ionicons name="business" size={22} color="#fff" />
+                  <Ionicons name="business" size={22} color={colors.white} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={s.name}>{user.hospitalName}</Text>
@@ -251,7 +251,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700', flex: 1 },
 
   body: { flex: 1 },
   bodyContent: { padding: 14, paddingBottom: 40 },
@@ -275,7 +275,7 @@ const s = StyleSheet.create({
     backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
   },
   avatarSquare: { borderRadius: 12 },
-  avatarText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  avatarText: { color: colors.white, fontSize: 17, fontWeight: '700' },
   name: { fontSize: 15, fontWeight: '700', color: C.text },
   role: { fontSize: 12, color: C.muted, marginTop: 2 },
 
@@ -288,7 +288,7 @@ const s = StyleSheet.create({
     gap: 6, paddingVertical: 10, borderRadius: 10,
     backgroundColor: C.tealPale,
   },
-  actionBtnDisabled: { backgroundColor: '#F1F5F9' },
+  actionBtnDisabled: { backgroundColor: colors.surfaceSubtle },
   actionText: { fontSize: 13, fontWeight: '700', color: C.teal },
   actionTextDisabled: { color: C.muted },
 
@@ -313,5 +313,5 @@ const s = StyleSheet.create({
     backgroundColor: C.teal, borderRadius: 10,
     paddingHorizontal: 20, paddingVertical: 10,
   },
-  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  addBtnText: { color: colors.white, fontSize: 13, fontWeight: '700' },
 });

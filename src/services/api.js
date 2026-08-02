@@ -118,16 +118,6 @@ export const searchHospitals = (query) =>
 export const searchDoctors = (query) =>
   api.get(`/doctors?search=${encodeURIComponent(query)}`);
 
-export const getAppointments = (patientId) =>
-  api.get('/appointments', { params: { patientId } });
-
-export const createAppointment = (payload) => api.post('/appointments', payload);
-
-export const updateAppointment = (id, payload) =>
-  api.patch(`/appointments/${id}`, payload);
-
-export const deleteAppointment = (id) => api.delete(`/appointments/${id}`);
-
 export const getDocuments = (patientId) =>
   api.get('/documents', { params: { patientId } });
 

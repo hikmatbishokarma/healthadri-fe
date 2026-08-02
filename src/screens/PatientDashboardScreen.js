@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Illustration from '../components/Illustration';
+import MedsEmptyIllustration from '../components/MedsEmptyIllustration';
+import ApptEmptyIllustration from '../components/ApptEmptyIllustration';
 import {
   View,
   Text,
@@ -80,6 +81,27 @@ function checkinDaysThisWeek(entries) {
   return days.size;
 }
 
+// Per-day check-in map for the day-tracker row — the calendar week
+// (Monday–Sunday) containing today, distinct from checkinDaysThisWeek's
+// rolling-7-day count above, since the tracker shows specific weekdays.
+function checkinDaysOfWeek(entries) {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun..6=Sat
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow));
+  monday.setHours(0, 0, 0, 0);
+
+  const checkedDates = new Set((entries || []).map((e) => new Date(e.createdAt).toDateString()));
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return checkedDates.has(d.toDateString());
+  });
+}
+
+const WEEK_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   teal: colors.primary,
@@ -106,6 +128,7 @@ export default function PatientDashboardScreen({ navigation }) {
   const [nextItem, setNextItem] = useState(null);
   const [careReminders, setCareReminders] = useState([]);
   const [checkinDays, setCheckinDays] = useState(0);
+  const [weekDots, setWeekDots] = useState(() => Array(7).fill(false));
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -121,6 +144,7 @@ export default function PatientDashboardScreen({ navigation }) {
       ]);
       setTriage(triageRes.data);
       setCheckinDays(checkinDaysThisWeek(historyRes.data));
+      setWeekDots(checkinDaysOfWeek(historyRes.data));
 
       const entry = entryRes.data;
       if (entry?.createdAt) {
@@ -154,6 +178,7 @@ export default function PatientDashboardScreen({ navigation }) {
       setLatestResponses([]);
       setCareReminders([]);
       setCheckinDays(0);
+      setWeekDots(Array(7).fill(false));
       setNextItem(null);
     } finally {
       setRefreshing(false);
@@ -309,7 +334,13 @@ export default function PatientDashboardScreen({ navigation }) {
             )}
           </View>
           {medsToday.total === 0 ? (
-            <Text style={s.medsEmptyText}>No medications scheduled for today.</Text>
+            <View style={s.medsEmptyRow}>
+              <MedsEmptyIllustration size={64} />
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={s.medsEmptyTitle}>Nothing to take today</Text>
+                <Text style={s.medsEmptySub}>Your care plan has no medicines scheduled for today.</Text>
+              </View>
+            </View>
           ) : (
             medsToday.items.map((m) => (
               <View key={m.id} style={s.medItemRow}>
@@ -331,10 +362,6 @@ export default function PatientDashboardScreen({ navigation }) {
           )}
         </View>
 
-        {/* ── Weekly Report + Care Team: two pure navigation rows, no own
-             per-item status — merged into one plain list per Design DNA v2
-             §14.3/14.4 (identical bordered-box repetition was the flagged
-             violation), instead of two separate bordered cards. ── */}
         <View style={s.navList}>
           <TouchableOpacity style={s.navRow} onPress={() => navigation.navigate('WeeklyReport')} activeOpacity={0.7}>
             <View style={[s.navIconBox, { backgroundColor: colors.primaryTint }]}>
@@ -344,22 +371,18 @@ export default function PatientDashboardScreen({ navigation }) {
               <Text style={s.navRowTitle}>{checkinDays} of 7 days checked in this week</Text>
               <Text style={s.navRowSub}>Consistency helps your care team understand you better</Text>
             </View>
-            <Text style={s.chevron}>›</Text>
           </TouchableOpacity>
 
-          <View style={s.navDivider} />
-
-          <TouchableOpacity
-            style={s.navRow}
-            onPress={() => navigation.navigate('Chat', { withUserId: user?.assignedNavigatorId, name: 'Navigator' })}
-            activeOpacity={0.7}
-          >
-            <View style={[s.navIconBox, { backgroundColor: colors.marigoldTint }]}>
-              <Ionicons name="chatbubble-outline" size={18} color={colors.accentViolet} />
-            </View>
-            <Text style={[s.navRowTitle, { flex: 1, marginLeft: 12 }]}>Message your Care Guide</Text>
-            <Text style={s.chevron}>›</Text>
-          </TouchableOpacity>
+          <View style={s.dayTrackerRow}>
+            {WEEK_LETTERS.map((letter, i) => (
+              <View key={i} style={s.dayCol}>
+                <Text style={s.dayLetter}>{letter}</Text>
+                <View style={[s.dayDot, weekDots[i] && s.dayDotDone]}>
+                  {weekDots[i] && <Ionicons name="checkmark" size={11} color={colors.white} />}
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
         <Text style={s.sectionLabel}>NEXT UP</Text>
@@ -417,10 +440,10 @@ function NextUpCard({ nextItem, onPress }) {
   if (!nextItem) {
     return (
       <View style={s.nextEmpty}>
-        <Illustration name="appointment_empty" size={72} />
+        <ApptEmptyIllustration size={64} />
         <View style={{ flex: 1, marginLeft: 14 }}>
-          <Text style={s.nextEmptyTitle}>No upcoming appointments</Text>
-          <Text style={s.nextEmptySub}>Your appointments will appear here</Text>
+          <Text style={s.nextEmptyTitle}>No appointments scheduled</Text>
+          <Text style={s.nextEmptySub}>Your next hospital visit or follow-up will appear here.</Text>
         </View>
       </View>
     );
@@ -538,7 +561,9 @@ const s = StyleSheet.create({
   },
   medsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   medsViewAll: { fontSize: 12, fontWeight: '700', color: C.teal },
-  medsEmptyText: { fontSize: 12, color: C.muted, paddingVertical: 4 },
+  medsEmptyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  medsEmptyTitle: { fontSize: 13.5, fontWeight: '700', color: C.text, marginBottom: 2 },
+  medsEmptySub: { fontSize: 11.5, color: C.textSub, lineHeight: 16 },
   medItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -554,22 +579,29 @@ const s = StyleSheet.create({
   medStatusPending: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   medStatusPendingText: { fontSize: 11, fontWeight: '700', color: C.amber },
 
-  // ── Weekly Report + Care Team: one plain list, no card chrome at all — two
-  // pure navigation rows collapsed per Design DNA v2 §14.3/14.4 (the flagged
-  // "three identical bordered boxes" was the medsCard/weeklyCard/careRow trio).
   navList: { marginBottom: 18 },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
   },
-  navDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border },
   navIconBox: {
     width: 40, height: 40, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
   navRowTitle: { fontSize: 14, fontWeight: '700', color: C.text },
   navRowSub: { fontSize: 12, color: C.muted, marginTop: 2 },
+
+  // ── Day tracker — under the "N of 7 days" row ──
+  dayTrackerRow: { flexDirection: 'row', gap: 7, paddingLeft: 52, paddingBottom: 14 },
+  dayCol: { alignItems: 'center', gap: 4 },
+  dayLetter: { fontSize: 9, fontWeight: '700', color: C.muted },
+  dayDot: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 1.5, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dayDotDone: { backgroundColor: C.green, borderColor: C.green },
 
   // ── Section label ──
   sectionLabel: {

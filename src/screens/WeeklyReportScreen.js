@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Illustration from '../components/Illustration';
+import TrackConsistentlyIllustration from '../components/TrackConsistentlyIllustration';
+import ApptEmptyIllustration from '../components/ApptEmptyIllustration';
 import {
   View,
   Text,
@@ -18,14 +20,14 @@ import { colors } from '../theme/colors';
 const C = {
   teal: colors.primary,
   tealDark: colors.primaryDarkest,
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  muted: '#64748B',
-  border: '#E2E8F0',
-  green: '#22C55E',
-  amber: '#F59E0B',
-  red: '#EF4444',
+  bg: colors.background,
+  card: colors.white,
+  text: colors.textBody,
+  muted: colors.textSecondary,
+  border: colors.border,
+  green: colors.successStrong,
+  amber: colors.warning,
+  red: colors.danger,
 };
 
 function getColor(value) {
@@ -63,7 +65,7 @@ export default function WeeklyReportScreen({ navigation }) {
       <SafeAreaView edges={['top']} style={{ backgroundColor: C.teal }}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Your Weekly Report</Text>
           <View style={{ width: 32 }} />
@@ -73,7 +75,7 @@ export default function WeeklyReportScreen({ navigation }) {
             style={styles.weekNavBtn}
             onPress={() => setWeeksBack(w => w + 1)}
           >
-            <Ionicons name="chevron-back" size={16} color="#fff" />
+            <Ionicons name="chevron-back" size={16} color={colors.white} />
             <Text style={styles.weekNavText}>Previous</Text>
           </TouchableOpacity>
           <Text style={styles.weekNavLabel}>
@@ -85,7 +87,7 @@ export default function WeeklyReportScreen({ navigation }) {
             disabled={weeksBack === 0}
           >
             <Text style={styles.weekNavText}>Next</Text>
-            <Ionicons name="chevron-forward" size={16} color={weeksBack === 0 ? 'rgba(255,255,255,0.3)' : '#fff'} />
+            <Ionicons name="chevron-forward" size={16} color={weeksBack === 0 ? 'rgba(255,255,255,0.3)' : colors.white} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -155,6 +157,29 @@ export default function WeeklyReportScreen({ navigation }) {
               </View>
             </View>
           </View>
+
+          <View style={styles.trackCard}>
+            <TrackConsistentlyIllustration size={46} />
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.trackTitle}>Track consistently</Text>
+              <Text style={styles.trackSub}>Regular updates help your care team understand your health better.</Text>
+            </View>
+          </View>
+
+          <View style={styles.tipCard}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.tipHead}>
+                <View style={styles.tipIconBox}>
+                  <Ionicons name="bulb-outline" size={14} color={C.teal} />
+                </View>
+                <Text style={styles.tipTitle}>Tip</Text>
+              </View>
+              <Text style={styles.tipSub}>Try checking in every day for more accurate insights.</Text>
+            </View>
+            <View style={{ marginLeft: 12 }}>
+              <ApptEmptyIllustration size={56} />
+            </View>
+          </View>
         </ScrollView>
       )}
     </View>
@@ -180,8 +205,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { color: '#fff', fontSize: 18, lineHeight: 20 },
-  headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  backIcon: { color: colors.white, fontSize: 18, lineHeight: 20 },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700', flex: 1 },
 
   weekNav: {
     flexDirection: 'row',
@@ -194,8 +219,8 @@ const styles = StyleSheet.create({
   },
   weekNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   weekNavBtnDisabled: { opacity: 0.3 },
-  weekNavText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  weekNavLabel: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  weekNavText: { color: colors.white, fontSize: 13, fontWeight: '600' },
+  weekNavLabel: { color: colors.white, fontSize: 13, fontWeight: '700' },
 
   body: { flex: 1 },
   bodyContent: { padding: 14, paddingBottom: 32 },
@@ -259,6 +284,34 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', justifyContent: 'space-around' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 12, color: C.text, fontWeight: '600' },
+
+  trackCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successTint,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+  },
+  trackTitle: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 3 },
+  trackSub: { fontSize: 11.5, color: C.muted, lineHeight: 16 },
+
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primarySurface,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+  },
+  tipHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  tipIconBox: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.white,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tipTitle: { fontSize: 13.5, fontWeight: '700', color: C.text },
+  tipSub: { fontSize: 11, color: C.muted, lineHeight: 16 },
 
   emptyCard: {
     backgroundColor: C.card,

@@ -19,19 +19,19 @@ import { colors } from '../theme/colors';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  bg: '#F4F6F8',
-  card: '#FFFFFF',
+  bg: colors.background,
+  card: colors.white,
   text: '#111827',
   textSub: '#4B5563',
   muted: '#9CA3AF',
   border: '#E5E7EB',
-  green: '#16A34A',
+  green: colors.success,
   greenBg: '#F0FDF4',
   greenBorder: '#BBF7D0',
-  amber: '#D97706',
+  amber: colors.warningStrong,
   amberBg: '#FFFBEB',
   amberBorder: '#FDE68A',
-  red: '#DC2626',
+  red: colors.danger,
   redBg: '#FEF2F2',
   redBorder: '#FECACA',
   teal: colors.primary,
@@ -45,6 +45,10 @@ const ALERT_MESSAGES = {
   HIGH_PAIN_LEVEL: 'Pain levels are higher than usual today',
   MISSED_APPOINTMENT: 'A scheduled appointment was missed',
 };
+
+function notifyComingSoon() {
+  Alert.alert('Coming soon', "This isn't available yet.");
+}
 
 function scaleToLabel(value) {
   if (value == null) return null;
@@ -227,11 +231,11 @@ function OverviewCard({ ui }) {
     <View style={s.card}>
       <View style={s.cardHeader}>
         <Text style={s.cardTitle}>Overview</Text>
-        <TouchableOpacity><Text style={s.viewAll}>View all ›</Text></TouchableOpacity>
+        <TouchableOpacity onPress={notifyComingSoon}><Text style={s.viewAll}>View all ›</Text></TouchableOpacity>
       </View>
       <View style={s.overviewRow}>
         <OverviewCol
-          icon="trending-up-outline" iconBg="#DCFCE7" iconColor="#16A34A"
+          icon="trending-up-outline" iconBg={colors.successTint} iconColor={colors.success}
           label="Symptoms" value={sympLabel} valueColor={sympColor}
           arrow={top?.value >= 6 ? '↑' : null}
         />
@@ -240,11 +244,11 @@ function OverviewCard({ ui }) {
           label="Next Visit" value={nextLabel} valueSub={nextSub}
         />
         <OverviewCol
-          icon="clipboard-outline" iconBg="#EDE9FE" iconColor="#7C3AED"
+          icon="clipboard-outline" iconBg="#EDE9FE" iconColor={colors.accentViolet}
           label="Last Check-in" value={ui.lastCheckinDate ?? '–'} valueSub={ui.lastCheckinTime}
         />
         <OverviewCol
-          icon="shield-checkmark-outline" iconBg="#FEF3C7" iconColor="#D97706"
+          icon="shield-checkmark-outline" iconBg={colors.warningTint} iconColor={colors.warningStrong}
           label="Treatment Phase" value={ui.patient?.cancerStage ?? '–'}
           valueSub="On Track" valueSubColor={C.green} last
         />
@@ -265,12 +269,12 @@ function ThingsToNote({ ui }) {
     <View style={s.card}>
       <View style={s.cardHeader}>
         <Text style={s.cardTitle}>Things to note</Text>
-        <TouchableOpacity><Text style={s.viewAll}>View history ›</Text></TouchableOpacity>
+        <TouchableOpacity onPress={notifyComingSoon}><Text style={s.viewAll}>View history ›</Text></TouchableOpacity>
       </View>
       {rows.map((sym, i) => (
-        <TouchableOpacity key={i} style={[s.noteRow, s.noteRowBorder]} activeOpacity={0.7}>
+        <TouchableOpacity key={i} style={[s.noteRow, s.noteRowBorder]} activeOpacity={0.7} onPress={notifyComingSoon}>
           <View style={[s.noteIconBox, { backgroundColor: '#FEE2E2' }]}>
-            <Ionicons name="heart" size={14} color="#EF4444" />
+            <Ionicons name="heart" size={14} color={colors.danger} />
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -292,9 +296,9 @@ function ThingsToNote({ ui }) {
         <Text style={s.emptyText}>No symptoms recorded today</Text>
       )}
       {/* Caregiver Tip */}
-      <TouchableOpacity style={s.noteRow} activeOpacity={0.7}>
+      <TouchableOpacity style={s.noteRow} activeOpacity={0.7} onPress={notifyComingSoon}>
         <View style={[s.noteIconBox, { backgroundColor: '#FEF9C3' }]}>
-          <Ionicons name="bulb-outline" size={14} color="#D97706" />
+          <Ionicons name="bulb-outline" size={14} color={colors.warningStrong} />
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={[s.noteSymName, { color: C.teal }]}>Caregiver Tip</Text>
@@ -307,11 +311,11 @@ function ThingsToNote({ ui }) {
 }
 
 const PATIENT_MOODS = [
-  { key: 'very_good', icon: 'happy',         label: 'Very Good', accent: '#16A34A' },
+  { key: 'very_good', icon: 'happy',         label: 'Very Good', accent: colors.success },
   { key: 'good',      icon: 'happy-outline', label: 'Good',      accent: '#65A30D' },
-  { key: 'okay',      icon: 'remove-circle-outline', label: 'Okay', accent: '#D97706' },
+  { key: 'okay',      icon: 'remove-circle-outline', label: 'Okay', accent: colors.warningStrong },
   { key: 'not_good',  icon: 'sad-outline',   label: 'Not Good',  accent: '#EA580C' },
-  { key: 'very_bad',  icon: 'sad',           label: 'Very Bad',  accent: '#DC2626' },
+  { key: 'very_bad',  icon: 'sad',           label: 'Very Bad',  accent: colors.danger },
 ];
 
 function PatientMoodCheck() {
@@ -328,12 +332,12 @@ function PatientMoodCheck() {
             onPress={() => setSelected(m.key)}
             activeOpacity={0.75}
           >
-            <Ionicons name={m.icon} size={26} color={selected === m.key ? m.accent : '#94A3B8'} />
+            <Ionicons name={m.icon} size={26} color={selected === m.key ? m.accent : colors.textMuted} />
             <Text style={[s.moodLabel, selected === m.key && { color: m.accent, fontWeight: '700' }]}>{m.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
-      <TouchableOpacity style={s.addNoteBtn} activeOpacity={0.75}>
+      <TouchableOpacity style={s.addNoteBtn} activeOpacity={0.75} onPress={notifyComingSoon}>
         <Text style={s.addNoteBtnText}>✎  Add Note (Optional)</Text>
       </TouchableOpacity>
     </View>
@@ -343,20 +347,21 @@ function PatientMoodCheck() {
 function HelpfulForCaregivers({ patient }) {
   const cancerType = patient?.cancerType ?? 'oral';
   const items = [
-    { icon: 'book-outline',   iconColor: '#7C3AED', iconBg: '#EDE9FE', title: `Understanding ${cancerType} cancer`, sub: 'Learn about symptoms, treatment and care.' },
-    { icon: 'people-outline', iconColor: '#16A34A', iconBg: '#DCFCE7', title: 'Emotional support for caregivers', sub: 'Tips to manage stress and stay strong.' },
+    { icon: 'book-outline',   iconColor: colors.accentViolet, iconBg: '#EDE9FE', title: `Understanding ${cancerType} cancer`, sub: 'Learn about symptoms, treatment and care.' },
+    { icon: 'people-outline', iconColor: colors.success, iconBg: colors.successTint, title: 'Emotional support for caregivers', sub: 'Tips to manage stress and stay strong.' },
   ];
   return (
     <View style={s.card}>
       <View style={s.cardHeader}>
         <Text style={s.cardTitle}>Helpful for caregivers</Text>
-        <TouchableOpacity><Text style={s.viewAll}>View all ›</Text></TouchableOpacity>
+        <TouchableOpacity onPress={notifyComingSoon}><Text style={s.viewAll}>View all ›</Text></TouchableOpacity>
       </View>
       {items.map((item, i) => (
         <TouchableOpacity
           key={i}
           style={[s.helpRow, i < items.length - 1 && s.helpRowBorder]}
           activeOpacity={0.7}
+          onPress={notifyComingSoon}
         >
           <View style={[s.helpIconBox, { backgroundColor: item.iconBg }]}>
             <Ionicons name={item.icon} size={18} color={item.iconColor} />
@@ -430,7 +435,7 @@ export default function CaregiverDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
       <Header
         patient={ui?.patient}
         onBell={() => Alert.alert('Notifications', 'No new notifications')}
@@ -535,7 +540,7 @@ export default function CaregiverDashboardScreen({ navigation }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: '#FFFFFF' },
+  safe:    { flex: 1, backgroundColor: colors.white },
   center:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
   scroll:  { flex: 1, backgroundColor: C.bg },
   content: { padding: 14, paddingBottom: 56, gap: 14 },
@@ -545,7 +550,7 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -584,7 +589,7 @@ const s = StyleSheet.create({
     backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -654,7 +659,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: 'transparent',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.backgroundAlt,
   },
   moodEmoji: { fontSize: 22, marginBottom: 4 },
   moodLabel: { fontSize: 9, color: C.muted, textAlign: 'center', fontWeight: '500' },
@@ -692,7 +697,7 @@ const s = StyleSheet.create({
   // ── Bottom tab bar ──
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: C.border,
     paddingBottom: 16,
@@ -709,7 +714,7 @@ const s = StyleSheet.create({
   scheduleCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
+    shadowColor: colors.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4,
     elevation: 1,
   },
   scheduleDate: {
@@ -731,7 +736,7 @@ const s = StyleSheet.create({
     width: 72, height: 72, borderRadius: 36,
     backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  cgProfileAvatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  cgProfileAvatarText: { color: colors.white, fontSize: 26, fontWeight: '700' },
   cgProfileName: { fontSize: 20, fontWeight: '700', color: C.text, marginBottom: 4 },
   cgProfileSub: { fontSize: 13, color: C.muted },
 });

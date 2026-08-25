@@ -17,7 +17,7 @@ const lanHost = Constants.expoConfig?.hostUri?.split(':')[0] ?? '';
 // address that fails on physical devices.
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  (lanHost ? `http://${lanHost}:3000` : 'http://apihealthadri.i2space.in');
+  (lanHost ? `http://${lanHost}:3000` : 'https://api.healthadri.com');
 
 const api = axios.create({
   baseURL: BASE_URL,

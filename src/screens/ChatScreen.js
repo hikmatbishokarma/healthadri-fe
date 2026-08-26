@@ -50,7 +50,7 @@ function NavNotifiedPill() {
   return (
     <View style={s.sysPillAmber}>
       <Ionicons name="notifications-outline" size={10} color="#633806" style={{ marginRight: 4 }} />
-      <Text style={s.sysPillAmberText}>Navigator notified via in-app alert</Text>
+      <Text style={s.sysPillAmberText}>Your navigator has been notified</Text>
     </View>
   );
 }

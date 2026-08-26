@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StatusBar,
   Animated,
@@ -17,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import FaceScale from '../components/FaceScale';
 import SymptomIconScene from '../components/SymptomIconScene';
 import TopSymptoms from '../components/TopSymptoms';
+import InlineNotice from '../components/InlineNotice';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
@@ -78,42 +78,49 @@ export default function SymptomScreen({ navigation }) {
   const [savedGuidance, setSavedGuidance] = useState([]);
   const [saveError, setSaveError] = useState(null);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   // Always-current values for reading inside timer callbacks
   const valuesRef = useRef({});
   const autoTimer = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [symptomsRes, entryRes] = await Promise.all([
-          getSymptoms(),
-          user?._id ? getLatestSymptomEntry(user._id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
-        ]);
-        const fetchedSymptoms = symptomsRes.data?.data ?? [];
-        const list =
-          fetchedSymptoms.length > 0
-            ? fetchedSymptoms
-            : [
-                { _id: 'pain',    name: 'Pain',    min: 0, max: 10 },
-                { _id: 'fatigue', name: 'Fatigue', min: 0, max: 10 },
-                { _id: 'nausea',  name: 'Nausea',  min: 0, max: 10 },
-                { _id: 'fever',   name: 'Fever',   min: 0, max: 10 },
-              ];
-        setSymptoms(list);
+  const loadSymptoms = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [symptomsRes, entryRes] = await Promise.all([
+        getSymptoms(),
+        user?._id ? getLatestSymptomEntry(user._id).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+      ]);
+      const fetchedSymptoms = symptomsRes.data?.data ?? [];
+      const list =
+        fetchedSymptoms.length > 0
+          ? fetchedSymptoms
+          : [
+              { _id: 'pain',    name: 'Pain',    min: 0, max: 10 },
+              { _id: 'fatigue', name: 'Fatigue', min: 0, max: 10 },
+              { _id: 'nausea',  name: 'Nausea',  min: 0, max: 10 },
+              { _id: 'fever',   name: 'Fever',   min: 0, max: 10 },
+            ];
+      setSymptoms(list);
 
-        const entry = entryRes.data;
-        if (entry?.createdAt) {
-          const entryDate = new Date(entry.createdAt);
-          setAlreadyCheckedIn(entryDate.toDateString() === new Date().toDateString());
-        }
-      } catch {
-        Alert.alert('Could not load', 'Please check your internet and try again.');
-      } finally {
-        setLoading(false);
+      const entry = entryRes.data;
+      if (entry?.createdAt) {
+        const entryDate = new Date(entry.createdAt);
+        setAlreadyCheckedIn(entryDate.toDateString() === new Date().toDateString());
       }
-    })();
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Deliberately mount-only (matches the original effect) — loadSymptoms is
+  // still called fresh on each retry tap via the button below.
+  useEffect(() => {
+    loadSymptoms();
     return () => {
       if (autoTimer.current) clearTimeout(autoTimer.current);
     };
@@ -182,6 +189,17 @@ export default function SymptomScreen({ navigation }) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={C.primary} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.center, { paddingHorizontal: 24 }]}>
+        <InlineNotice
+          message="Please check your internet and try again."
+          onRetry={loadSymptoms}
+        />
       </View>
     );
   }
@@ -324,7 +342,7 @@ export default function SymptomScreen({ navigation }) {
 
       {alreadyCheckedIn && (
         <View style={styles.resubmitBanner}>
-          <Ionicons name="checkmark-circle" size={16} color={colors.warningStrong} />
+          <Ionicons name="checkmark-circle" size={16} color={colors.textSecondary} />
           <Text style={styles.resubmitText}>
             You already checked in today. Submit again only if your symptoms have changed.
           </Text>
@@ -528,16 +546,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.warningTint,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#FDE9C4',
+    borderColor: colors.border,
     borderRadius: 14,
     marginHorizontal: 20,
     marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  resubmitText: { color: '#92400E', fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 17 },
+  resubmitText: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 17 },
 
   errorBanner: {
     backgroundColor: colors.dangerTint,

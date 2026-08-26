@@ -6,7 +6,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
-import AiChatFab from '../components/AiChatFab';
+import AiChatFab, { FAB_TABBED_LIFT } from '../components/AiChatFab';
 
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -29,6 +29,11 @@ import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
+
+// Screens that render the custom BottomNav tab bar — the fab needs to be
+// lifted above it on all of them, not just the dashboard (it was missing
+// this on CareTeam/MedicalRecords/Profile and landed on the tab bar there).
+const TABBED_ROUTES = ['PatientDashboard', 'CareTeam', 'MedicalRecords', 'Profile'];
 
 export default function AppNavigator() {
   const { user, loading } = useAuth();
@@ -180,7 +185,7 @@ export default function AppNavigator() {
       {showFab ? (
         <AiChatFab
           onPress={openAiChat}
-          extraBottom={routeName === 'PatientDashboard' ? 72 : 0}
+          extraBottom={TABBED_ROUTES.includes(routeName) ? FAB_TABBED_LIFT : 0}
         />
       ) : null}
     </View>

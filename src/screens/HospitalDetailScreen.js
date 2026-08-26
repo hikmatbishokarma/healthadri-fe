@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getHospitalById } from '../services/api';
+import InlineNotice from '../components/InlineNotice';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -45,19 +46,20 @@ export default function HospitalDetailScreen({ navigation, route }) {
   const [hospital, setHospital] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      if (!hospitalId) { setLoading(false); return; }
-      try {
-        const res = await getHospitalById(hospitalId);
-        setHospital(res.data);
-      } catch {
-        setHospital(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const loadHospital = useCallback(async () => {
+    if (!hospitalId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const res = await getHospitalById(hospitalId);
+      setHospital(res.data);
+    } catch {
+      setHospital(null);
+    } finally {
+      setLoading(false);
+    }
   }, [hospitalId]);
+
+  useEffect(() => { loadHospital(); }, [loadHospital]);
 
   const addressParts = [hospital?.address, hospital?.landmark, hospital?.city].filter(Boolean);
 
@@ -77,8 +79,11 @@ export default function HospitalDetailScreen({ navigation, route }) {
       {loading ? (
         <ActivityIndicator color={C.teal} style={{ marginTop: 30 }} />
       ) : !hospital ? (
-        <View style={s.center}>
-          <Text style={{ color: C.muted }}>Could not load hospital details.</Text>
+        <View style={[s.center, { paddingHorizontal: 24 }]}>
+          <InlineNotice
+            message="Could not load hospital details."
+            onRetry={loadHospital}
+          />
         </View>
       ) : (
         <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>

@@ -15,11 +15,13 @@ import {
   Modal,
   FlatList,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { generateInvite, searchHospitals, updateProfile } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
+import { FAB_TABBED_CLEARANCE } from '../components/AiChatFab';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -136,7 +138,10 @@ const DP_YEARS = Array.from({ length: 40 }, (_, i) => String(new Date().getFullY
 export default function ProfileScreen({ navigation }) {
   const { user, refresh, signOut } = useAuth();
   const isOnboarding = !user?.profileCompleted;
-  const prevProfileCompleted = useRef(user?.profileCompleted);
+  // Shown after the wizard's final save succeeds, before handing off to the
+  // dashboard — see the effect below that times its exit.
+  const [showAck, setShowAck] = useState(false);
+  const ackFade = useRef(new Animated.Value(0)).current;
 
   // Profile edit state
   const [editMode, setEditMode] = useState(false);
@@ -196,12 +201,20 @@ export default function ProfileScreen({ navigation }) {
     setHospitalName(user?.hospitalName || '');
   }, [user]);
 
+  // Acknowledgment beat: fade in (300ms), hold quietly (~1.9s), then hand off
+  // to the dashboard — same navigation.replace call the wizard always used,
+  // just no longer instant.
   useEffect(() => {
-    const wasIncomplete = !prevProfileCompleted.current;
-    const nowComplete = !!user?.profileCompleted;
-    if (wasIncomplete && nowComplete) navigation.replace('PatientDashboard');
-    prevProfileCompleted.current = user?.profileCompleted;
-  }, [user?.profileCompleted]);
+    if (!showAck) return;
+    ackFade.setValue(0);
+    Animated.timing(ackFade, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    const timer = setTimeout(() => navigation.replace('PatientDashboard'), 2200);
+    return () => clearTimeout(timer);
+  }, [showAck]);
 
   // Suppress browser focus outline on web
   useEffect(() => {
@@ -253,6 +266,7 @@ export default function ProfileScreen({ navigation }) {
         hospitalName: form.hospitalName,
       });
       await refresh();
+      setShowAck(true);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message?.toString() || 'Could not save. Please try again.');
     } finally { setSaving(false); }
@@ -315,7 +329,24 @@ export default function ProfileScreen({ navigation }) {
     : '?';
 
   // ─── Onboarding Wizard ───────────────────────────────────────────────────────
-  if (isOnboarding) {
+  if (isOnboarding || showAck) {
+    if (showAck) {
+      return (
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+          <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+          <SafeAreaView style={s.ackWrap} edges={['top', 'bottom']}>
+            <Animated.View style={[s.ackContent, { opacity: ackFade }]}>
+              <View style={s.ackIconRing}>
+                <Ionicons name="checkmark-circle" size={40} color={colors.success} />
+              </View>
+              <Text style={s.ackTitle}>You're all set.</Text>
+              <Text style={s.ackSub}>Your care team now has what they need to support you.</Text>
+            </Animated.View>
+          </SafeAreaView>
+        </View>
+      );
+    }
+
     const stepValid = () => {
       if (currentStep === 1) return form.name.trim() && form.age && form.gender;
       if (currentStep === 2) return !!form.cancerType && !!form.treatmentStatus;
@@ -348,7 +379,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="chevron-back" size={22} color={C.text} />
             </TouchableOpacity>
             <View style={{ alignItems: 'center' }}>
-              <Text style={s.headerTitle}>Registration</Text>
+              <Text style={s.headerTitle}>Your Care Profile</Text>
               <Text style={s.headerSub}>Step {currentStep} of 5</Text>
             </View>
             <View style={{ width: 40 }} />
@@ -821,7 +852,7 @@ export default function ProfileScreen({ navigation }) {
               ) : (
                 <>
                   <Text style={s.ctaBtnText}>
-                    {currentStep === 5 ? 'Complete Registration' : 'Continue'}
+                    {currentStep === 5 ? 'Complete Profile' : 'Continue'}
                   </Text>
                   <Ionicons
                     name={currentStep === 5 ? 'checkmark-circle' : 'arrow-forward'}
@@ -1269,6 +1300,10 @@ export default function ProfileScreen({ navigation }) {
         </ScrollView>
       </SafeAreaView>
 
+      {/* Reserves the fab's real footprint above BottomNav — see the same
+          spacer in PatientDashboardScreen for why padding alone isn't enough. */}
+      <View style={{ height: FAB_TABBED_CLEARANCE }} pointerEvents="none" />
+
       <BottomNav active="Profile" navigation={navigation} />
     </View>
   );
@@ -1639,6 +1674,21 @@ const s = StyleSheet.create({
   // Step titles
   stepTitle: { fontSize: 22, fontWeight: '700', color: C.text, marginBottom: 6, lineHeight: 30 },
   stepSub: { fontSize: 14, color: C.textSub, marginBottom: 24, lineHeight: 20 },
+
+  // Acknowledgment (post-onboarding, pre-dashboard)
+  ackWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  ackContent: { alignItems: 'center' },
+  ackIconRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.successTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  ackTitle: { fontSize: 22, fontWeight: '700', color: C.text, textAlign: 'center', marginBottom: 8 },
+  ackSub: { fontSize: 14, color: C.textSub, textAlign: 'center', lineHeight: 20 },
 
   // Labels
   label: { fontSize: 13, fontWeight: '600', color: C.textSub, marginBottom: 8, marginTop: 16 },

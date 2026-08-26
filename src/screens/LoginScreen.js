@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../../assets/logo.svg';
 import { caregiverLink, firebaseVerify, sendOtp, verifyOtp } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import InlineNotice from '../components/InlineNotice';
 import { colors } from '../theme/colors';
 
 const USE_FIREBASE = process.env.EXPO_PUBLIC_USE_FIREBASE === 'true';
@@ -66,6 +67,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [countdown, setCountdown] = useState(30);
+  const [phoneError, setPhoneError] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [inviteError, setInviteError] = useState('');
   const otpRefs = useRef([]);
 
   // Inject global CSS once on web to kill the browser's native input focus ring.
@@ -103,9 +107,10 @@ export default function LoginScreen() {
 
   const handleSendOtp = async () => {
     if (phone.length < 10) {
-      Alert.alert('Invalid phone', 'Enter a 10-digit phone number.');
+      setPhoneError('Enter a 10-digit phone number.');
       return;
     }
+    setPhoneError('');
     setLoading(true);
     try {
       if (USE_FIREBASE) {
@@ -117,7 +122,7 @@ export default function LoginScreen() {
       }
       setStep('otp');
     } catch (err) {
-      Alert.alert('Error', err.message || err.response?.data?.message || 'Failed to send OTP');
+      setPhoneError(err.message || err.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -125,9 +130,10 @@ export default function LoginScreen() {
 
   const handleVerifyOtp = async () => {
     if (otp.length < 4) {
-      Alert.alert('Invalid OTP', 'Enter the 4-digit OTP.');
+      setOtpError('Enter the 4-digit OTP.');
       return;
     }
+    setOtpError('');
     setLoading(true);
     try {
       let res;
@@ -145,7 +151,7 @@ export default function LoginScreen() {
         await signIn(res.data.token, res.data.user);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Invalid OTP');
+      setOtpError(err.response?.data?.message || err.message || 'Invalid OTP');
     } finally {
       setLoading(false);
     }
@@ -153,15 +159,16 @@ export default function LoginScreen() {
 
   const handleCaregiverLink = async () => {
     if (inviteCode.trim().length < 5) {
-      Alert.alert('Invite code required', 'Enter the invite code shared by the patient.');
+      setInviteError('Enter the invite code shared by the patient.');
       return;
     }
+    setInviteError('');
     setLoading(true);
     try {
       const res = await caregiverLink(tempToken, inviteCode.trim().toUpperCase());
       await signIn(res.data.token, res.data.user);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Invalid invite code');
+      setInviteError(err.response?.data?.message || 'Invalid invite code');
     } finally {
       setLoading(false);
     }
@@ -244,7 +251,7 @@ export default function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <TouchableOpacity style={s.backBtn} onPress={() => { setStep('role'); setPhone(''); }}>
+          <TouchableOpacity style={s.backBtn} onPress={() => { setStep('role'); setPhone(''); setPhoneError(''); }}>
             <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
           </TouchableOpacity>
 
@@ -282,7 +289,7 @@ export default function LoginScreen() {
                 placeholderTextColor="#B0C4BF"
                 keyboardType="phone-pad"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(v) => { setPhone(v); if (phoneError) setPhoneError(''); }}
                 maxLength={10}
                 autoFocus
                 underlineColorAndroid="transparent"
@@ -296,6 +303,8 @@ export default function LoginScreen() {
                 </View>
               )}
             </View>
+
+            <InlineNotice message={phoneError} />
 
             {/* Button */}
             <TouchableOpacity style={s.primaryBtn} onPress={handleSendOtp} disabled={loading}>
@@ -332,6 +341,7 @@ export default function LoginScreen() {
     const ss = String(countdown % 60).padStart(2, '0');
 
     const handleOtpDigit = (digit, index) => {
+      if (otpError) setOtpError('');
       const chars = otp.padEnd(4, '').split('');
       chars[index] = digit;
       const next = chars.join('').trimEnd();
@@ -355,7 +365,7 @@ export default function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <TouchableOpacity style={s.backBtn} onPress={() => { setStep('phone'); setOtp(''); }}>
+          <TouchableOpacity style={s.backBtn} onPress={() => { setStep('phone'); setOtp(''); setOtpError(''); }}>
             <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
           </TouchableOpacity>
 
@@ -420,6 +430,8 @@ export default function LoginScreen() {
               )}
             </View>
 
+            <InlineNotice message={otpError} />
+
             <TouchableOpacity
               style={[s.primaryBtn, otp.length < 4 && s.primaryBtnDisabled]}
               onPress={handleVerifyOtp}
@@ -464,7 +476,7 @@ export default function LoginScreen() {
       >
         <TouchableOpacity
           style={s.backBtn}
-          onPress={() => { setStep('otp'); setInviteCode(''); setTempToken(''); }}
+          onPress={() => { setStep('otp'); setInviteCode(''); setTempToken(''); setInviteError(''); }}
         >
           <Ionicons name="chevron-back" size={20} color={colors.primaryDark} />
         </TouchableOpacity>
@@ -494,13 +506,15 @@ export default function LoginScreen() {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               value={inviteCode}
-              onChangeText={setInviteCode}
+              onChangeText={(v) => { setInviteCode(v); if (inviteError) setInviteError(''); }}
               maxLength={7}
               autoFocus
               underlineColorAndroid="transparent"
               selectionColor={colors.primary}
             />
           </View>
+
+          <InlineNotice message={inviteError} />
 
           <TouchableOpacity style={s.primaryBtn} onPress={handleCaregiverLink} disabled={loading}>
             {loading ? (

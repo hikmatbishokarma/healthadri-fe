@@ -236,7 +236,8 @@ export default function MedicationAlarmScreen({ route, navigation }) {
       <Modal visible={skipTarget !== null} transparent animationType="slide">
         <View style={s.modalBackdrop}>
           <View style={s.modalSheet}>
-            <Text style={s.modalTitle}>Can you please indicate why you're skipping this dose?</Text>
+            <Text style={s.modalTitle}>What happened?</Text>
+            <Text style={s.modalSub}>This helps your care team understand, not to judge — pick whatever fits.</Text>
             <ScrollView style={{ marginBottom: 16 }}>
               {SKIP_REASONS.map((r) => (
                 <TouchableOpacity
@@ -392,8 +393,14 @@ const s = StyleSheet.create({
     color: C.text,
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 6,
     lineHeight: 26,
+  },
+  modalSub: {
+    color: C.textSub,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 16,
   },
   reasonRow: {
     flexDirection: 'row',

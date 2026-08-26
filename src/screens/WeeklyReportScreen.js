@@ -174,7 +174,7 @@ export default function WeeklyReportScreen({ navigation }) {
                 </View>
                 <Text style={styles.tipTitle}>Tip</Text>
               </View>
-              <Text style={styles.tipSub}>Try checking in every day for more accurate insights.</Text>
+              <Text style={styles.tipSub}>Checking in every day helps your care team spot patterns and help sooner.</Text>
             </View>
             <View style={{ marginLeft: 12 }}>
               <ApptEmptyIllustration size={56} />

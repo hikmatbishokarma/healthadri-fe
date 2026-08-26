@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import MedsEmptyIllustration from '../components/MedsEmptyIllustration';
 import ApptEmptyIllustration from '../components/ApptEmptyIllustration';
 import {
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   StatusBar,
-  Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
+import { FAB_TABBED_CLEARANCE } from '../components/AiChatFab';
 import SeverityGauge from '../components/SeverityGauge';
 import CheckInIllustration from '../components/CheckInIllustration';
 import { colors } from '../theme/colors';
@@ -130,6 +131,9 @@ export default function PatientDashboardScreen({ navigation }) {
   const [checkinDays, setCheckinDays] = useState(0);
   const [weekDots, setWeekDots] = useState(() => Array(7).fill(false));
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotice, setShowNotice] = useState(false);
+  const noticeOpacity = useRef(new Animated.Value(0)).current;
+  const noticeTimer = useRef(null);
 
   const fetchAll = useCallback(async () => {
     if (!user?._id) return;
@@ -189,6 +193,19 @@ export default function PatientDashboardScreen({ navigation }) {
 
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
 
+  // Quiet in-context reply to a bell tap — fades in, holds, fades out on its
+  // own. Replaces a native alert until there's a real notifications feature.
+  const handleBellPress = () => {
+    setShowNotice(true);
+    Animated.timing(noticeOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => {
+      Animated.timing(noticeOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => setShowNotice(false));
+    }, 1600);
+  };
+
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
+
   const alert = triage?.alert;
   const severity = alert?.severity || alert?.level || null;
 
@@ -242,13 +259,20 @@ export default function PatientDashboardScreen({ navigation }) {
             <Text style={s.greeting}>{greeting},</Text>
             <Text style={s.name}>{user?.name || 'Patient'}</Text>
           </View>
-          <TouchableOpacity
-            style={s.bellBtn}
-            onPress={() => Alert.alert('Notifications', 'No new notifications')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
-          </TouchableOpacity>
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity
+              style={s.bellBtn}
+              onPress={handleBellPress}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
+            </TouchableOpacity>
+            {showNotice && (
+              <Animated.View style={[s.noticePill, { opacity: noticeOpacity }]}>
+                <Text style={s.noticePillText}>You're all caught up</Text>
+              </Animated.View>
+            )}
+          </View>
         </View>
       </SafeAreaView>
 
@@ -389,6 +413,15 @@ export default function PatientDashboardScreen({ navigation }) {
         <NextUpCard nextItem={nextItem} onPress={() => navigation.navigate('Reminders')} />
       </ScrollView>
 
+      {/* Reserves the fab's real footprint out of the ScrollView's own layout
+          height (not just trailing scroll padding) — padding at the tail of
+          scroll content can't move content that already fills the viewport,
+          so on short/empty states the fab was landing on top of the last
+          card instead of past it. Shrinking the scroll area itself by this
+          amount guarantees it never can, regardless of content length or
+          screen size. */}
+      <View style={{ height: FAB_TABBED_CLEARANCE }} pointerEvents="none" />
+
       <BottomNav active="Home" navigation={navigation} />
     </View>
   );
@@ -489,6 +522,18 @@ const s = StyleSheet.create({
   greeting: { color: C.muted, fontSize: 12, lineHeight: 16 },
   name: { color: C.text, fontSize: 17, fontWeight: '700', marginTop: 2, lineHeight: 22 },
   bellBtn: { padding: 4 },
+  noticePill: {
+    position: 'absolute',
+    top: 34,
+    right: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    zIndex: 10,
+    ...shadows.sm,
+  },
+  noticePillText: { fontSize: 11, fontWeight: '600', color: C.textSub },
 
   // ── Body ──
   body: { flex: 1 },

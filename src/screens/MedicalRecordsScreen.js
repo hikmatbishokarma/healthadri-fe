@@ -28,6 +28,7 @@ import {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
+import { FAB_TABBED_CLEARANCE } from '../components/AiChatFab';
 import { colors } from '../theme/colors';
 
 const C = {
@@ -378,6 +379,10 @@ export default function MedicalRecordsScreen({ navigation, route }) {
           )}
         </ScrollView>
       )}
+
+      {/* Reserves the fab's real footprint above BottomNav — see the same
+          spacer in PatientDashboardScreen for why padding alone isn't enough. */}
+      {!readOnly && <View style={{ height: FAB_TABBED_CLEARANCE }} pointerEvents="none" />}
 
       {!readOnly && <BottomNav active="Documents" navigation={navigation} />}
 
